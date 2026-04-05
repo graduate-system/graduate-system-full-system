@@ -9,6 +9,11 @@ out/
 dist/
 build/
 
+# .NET build outputs
+**/bin/
+**/obj/
+TestResults/
+
 # Environment files
 .env
 .env.local
@@ -25,6 +30,12 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.vs/
 
 # TypeScript
 *.tsbuildinfo
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
