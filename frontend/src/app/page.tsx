@@ -33,13 +33,13 @@ export default function HomePage() {
       {/* ── Navbar ─────────────────────────────────────── */}
       <header className="navbar">
         <div className="container navbar-inner">
-          <a href="/" className="navbar-brand">
+          <Link href="/" className="navbar-brand">
             <div className="navbar-logo">MUST</div>
             <div className="navbar-title">
               <span>GradTrack Analytics</span>
               <span>Meru University of Science &amp; Technology</span>
             </div>
-          </a>
+          </Link>
           <nav>
             <ul className="navbar-nav">
               <li><a href="#features">Features</a></li>
@@ -144,9 +144,9 @@ export default function HomePage() {
         <div className="container quote-band-inner">
           <blockquote>
             <p>
-              "Education is the most powerful weapon which you can use to
+              &ldquo;Education is the most powerful weapon which you can use to
               change the world — and data tells us how well that weapon is
-              being sharpened."
+              being sharpened.&rdquo;
             </p>
             <cite>— MUST Career Services Office</cite>
           </blockquote>
@@ -358,7 +358,7 @@ export default function HomePage() {
                     <span className="testimonial-prog">{t.prog}</span>
                   </div>
                 </div>
-                <p className="testimonial-quote">"{t.quote}"</p>
+                <p className="testimonial-quote">&ldquo;{t.quote}&rdquo;</p>
                 <div className="testimonial-employer">
                   <span>✅</span> {t.employer}
                 </div>

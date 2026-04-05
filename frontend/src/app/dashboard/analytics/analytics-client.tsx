@@ -7,6 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DashboardBarChart, DashboardPieChart } from "../charts";
 
+const EMPLOYED_STATUSES = [
+  "Employed (Full-time)",
+  "Employed (Part-time)",
+  "Self-employed / Entrepreneur",
+  "Internship / Attachment",
+] as const;
+
 function ChartCard({ title, subtitle, hint, children }: {
   title: string; subtitle?: string; hint?: string; children: React.ReactNode;
 }) {
@@ -34,7 +41,6 @@ export function AnalyticsClient({ data }: { data: DashboardData }) {
   const [compareSchool, setCompareSchool] = useState("");
   const [activeTab, setActiveTab] = useState<TabId>("rates");
   const grads = data.graduates;
-  const employedStatuses = ["Employed (Full-time)", "Employed (Part-time)", "Self-employed / Entrepreneur", "Internship / Attachment"];
 
   const rateBySchool = useMemo(() => {
     const map = new Map<string, { total: number; employed: number }>();
@@ -42,7 +48,7 @@ export function AnalyticsClient({ data }: { data: DashboardData }) {
       const k = shortSchool(r.school_name);
       const e = map.get(k) ?? { total: 0, employed: 0 };
       e.total++;
-      if (employedStatuses.includes(r.employment_status)) e.employed++;
+      if (EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number])) e.employed++;
       map.set(k, e);
     });
     return [...map.entries()]
@@ -57,7 +63,7 @@ export function AnalyticsClient({ data }: { data: DashboardData }) {
       const k = shortDept(r.department_name);
       const e = map.get(k) ?? { total: 0, employed: 0 };
       e.total++;
-      if (employedStatuses.includes(r.employment_status)) e.employed++;
+      if (EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number])) e.employed++;
       map.set(k, e);
     });
     return [...map.entries()]
@@ -86,7 +92,7 @@ export function AnalyticsClient({ data }: { data: DashboardData }) {
       const k = shortProg(r.programme_name);
       const e = map.get(k) ?? { total: 0, employed: 0 };
       e.total++;
-      if (employedStatuses.includes(r.employment_status)) e.employed++;
+      if (EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number])) e.employed++;
       map.set(k, e);
     });
     return [...map.entries()]

@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import type { DashboardData, Graduate } from "@/lib/dashboard-queries";
 import { MUST_SCHOOLS } from "@/lib/must-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   DashboardBarChart,
@@ -13,6 +12,13 @@ import {
   EmploymentGauge,
   HeroStatusChart,
 } from "./charts";
+
+const EMPLOYED_STATUSES = [
+  "Employed (Full-time)",
+  "Employed (Part-time)",
+  "Self-employed / Entrepreneur",
+  "Internship / Attachment",
+] as const;
 
 /* ── Filter select ── */
 function FilterSelect({ label, value, onChange, options }: {
@@ -99,8 +105,9 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
     return rows;
   }, [data.graduates, schoolFilter, yearFilter, statusFilter]);
 
-  const employedStatuses = ["Employed (Full-time)", "Employed (Part-time)", "Self-employed / Entrepreneur", "Internship / Attachment"];
-  const filteredEmployed = filteredGrads.filter((r) => employedStatuses.includes(r.employment_status));
+  const filteredEmployed = filteredGrads.filter((r) =>
+    EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number]),
+  );
   const filteredRate = filteredGrads.length > 0 ? Math.round((filteredEmployed.length / filteredGrads.length) * 100) : 0;
 
   const bySchool = useMemo(() => agg(filteredGrads, (r) => shortSchool(r.school_name)), [filteredGrads]);
@@ -115,7 +122,7 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
     filteredGrads.forEach((r) => {
       const e = m.get(r.graduation_year) ?? { count: 0, employed: 0 };
       e.count++;
-      if (employedStatuses.includes(r.employment_status)) e.employed++;
+      if (EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number])) e.employed++;
       m.set(r.graduation_year, e);
     });
     return [...m.entries()].map(([year, v]) => ({ year, ...v })).sort((a, b) => a.year - b.year);
