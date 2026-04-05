@@ -39,14 +39,6 @@ public sealed class SupabaseMetadataRepository(SupabaseRestClient supabase)
         return department is null ? null : (school, department);
     }
 
-    public async Task<bool> IsProgrammeValidAsync(
-        string schoolId, string departmentId, string programmeName, CancellationToken cancellationToken = default)
-    {
-        var resolved = await TryResolveDepartmentAsync(schoolId, departmentId, cancellationToken);
-        if (resolved is null) return false;
-        return resolved.Value.department.Programmes.Contains(programmeName, StringComparer.Ordinal);
-    }
-
     private async Task<IReadOnlyList<MustSchool>> LoadFromSupabaseAsync(CancellationToken cancellationToken)
     {
         // Fetch all three tables in parallel

@@ -1,9 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { backendGetJson, backendSendJson } from "@/lib/backend-api";
-
-const COOKIE_NAME = "committee_auth";
 
 export async function isAuthenticated(): Promise<boolean> {
   try {
@@ -15,9 +12,7 @@ export async function isAuthenticated(): Promise<boolean> {
 }
 
 export async function logout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
-  cookieStore.delete(COOKIE_NAME);
+  await backendSendJson("/api/committee/logout", "POST").catch(() => {});
 }
 
 export async function changePin(

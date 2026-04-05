@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import type { DashboardData, Graduate } from "@/lib/dashboard-queries";
 import type { School as MustSchool } from "@/lib/must-queries";
+import { EMPLOYED_STATUSES, shortSchool, shortDept, shortSector } from "@/lib/dashboard-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
@@ -12,13 +13,6 @@ import {
   EmploymentGauge,
   HeroStatusChart,
 } from "./charts";
-
-const EMPLOYED_STATUSES = [
-  "Employed (Full-time)",
-  "Employed (Part-time)",
-  "Self-employed / Entrepreneur",
-  "Internship / Attachment",
-] as const;
 
 /* ── Filter select ── */
 function FilterSelect({ label, value, onChange, options }: {
@@ -280,6 +274,4 @@ function agg(rows: Graduate[], keyFn: (r: Graduate) => string) {
   rows.forEach((r) => { const k = keyFn(r); m.set(k, (m.get(k) ?? 0) + 1); });
   return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 }
-function shortSchool(n: string) { return n.match(/\(([^)]+)\)/)?.[1] ?? n; }
-function shortDept(n: string) { return n.replace("Department of ", ""); }
-function shortSector(n: string) { return n.match(/\(([^)]+)\)/)?.[1] ?? n.substring(0, 25); }
+

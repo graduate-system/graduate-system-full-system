@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import type { Graduate } from "@/lib/dashboard-queries";
 import type { School as MustSchool } from "@/lib/must-queries";
+import { shortSchool, shortDept, shortStatus } from "@/lib/dashboard-utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -322,6 +323,4 @@ function esc(v: string | null | undefined) {
   if (v.includes(",") || v.includes('"') || v.includes("\n")) return `"${v.replace(/"/g, '""')}"`;
   return v;
 }
-function shortSchool(n: string) { return n.match(/\(([^)]+)\)/)?.[1] ?? n; }
-function shortDept(n: string) { return n.replace("Department of ", ""); }
-function shortStatus(s: string) { return s.replace("Unemployed — ", "").replace("Self-employed / ", "Self-emp. "); }
+

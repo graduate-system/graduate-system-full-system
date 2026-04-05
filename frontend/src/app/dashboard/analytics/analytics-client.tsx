@@ -3,16 +3,10 @@
 import { useMemo, useState } from "react";
 import type { DashboardData } from "@/lib/dashboard-queries";
 import type { School as MustSchool } from "@/lib/must-queries";
+import { EMPLOYED_STATUSES, shortSchool, shortDept, shortSector, shortProg } from "@/lib/dashboard-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DashboardBarChart, DashboardPieChart } from "../charts";
-
-const EMPLOYED_STATUSES = [
-  "Employed (Full-time)",
-  "Employed (Part-time)",
-  "Self-employed / Entrepreneur",
-  "Internship / Attachment",
-] as const;
 
 function ChartCard({ title, subtitle, hint, children }: {
   title: string; subtitle?: string; hint?: string; children: React.ReactNode;
@@ -189,7 +183,4 @@ export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mu
   );
 }
 
-function shortSchool(n: string) { return n.match(/\(([^)]+)\)/)?.[1] ?? n; }
-function shortDept(n: string) { return n.replace("Department of ", ""); }
-function shortSector(n: string) { return n.match(/\(([^)]+)\)/)?.[1] ?? n.substring(0, 25); }
-function shortProg(n: string) { return n.length > 40 ? n.substring(0, 37) + "…" : n; }
+

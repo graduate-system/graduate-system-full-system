@@ -27,8 +27,11 @@ import {
   type GraduatePayload,
   type BulkResult,
 } from "@/lib/actions";
+import { EMPLOYED_STATUSES, EMPLOYED_STATUSES_SET } from "@/lib/dashboard-utils";
 
-const EMPLOYMENT_STATUSES = [
+const CAMPUSES = ["Main Campus (Nchiru)", "Meru Town Campus"] as const;
+
+const ALL_EMPLOYMENT_STATUSES = [
   "Employed (Full-time)",
   "Employed (Part-time)",
   "Self-employed / Entrepreneur",
@@ -37,8 +40,6 @@ const EMPLOYMENT_STATUSES = [
   "Unemployed — Seeking",
   "Unemployed — Not Seeking",
 ] as const;
-
-const CAMPUSES = ["Main Campus (Nchiru)", "Meru Town Campus"] as const;
 
 /* ── Tab type ── */
 type Mode = "single" | "spreadsheet";
@@ -150,7 +151,7 @@ function SingleEntryForm({ schools }: { schools: School[] }) {
     if (phone && !PHONE_RE.test(phone))   { setResult({ ok: false, msg: "Enter a valid phone number (e.g. +254712345678)." }); return; }
     if (student_number && !STUDENT_NO_RE.test(student_number)) { setResult({ ok: false, msg: "Student number format: MUST/PG/123/2020." }); return; }
     if (linkedin_url && !/^https?:\/\/.+/.test(linkedin_url)) { setResult({ ok: false, msg: "Enter a valid LinkedIn URL (must start with https://)." }); return; }
-    if (EMPLOYED_STATUSES.has(employment_status)) {
+    if (EMPLOYED_STATUSES_SET.has(employment_status)) {
       if (!employer_name) { setResult({ ok: false, msg: "Employer name is required when employed." }); return; }
       if (!sector_val)    { setResult({ ok: false, msg: "Sector is required when employed." }); return; }
     }
@@ -244,7 +245,7 @@ function SingleEntryForm({ schools }: { schools: School[] }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <Fld label="Employment Status *">
                 <Sel name="employment_status" placeholder="Select status">
-                  {EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {ALL_EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </Sel>
               </Fld>
               <Fld label="Employer Name"><Input name="employer_name" placeholder="e.g. Safaricom PLC" /></Fld>
@@ -303,11 +304,6 @@ const NAME_RE = /^[A-Za-z\s''-]+$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?\d{10,15}$/;
 const STUDENT_NO_RE = /^(MUST\/[A-Z]{1,4}\/\d+\/\d{4})?$/;
-const EMPLOYED_STATUSES = new Set([
-  "Employed (Full-time)", "Employed (Part-time)",
-  "Self-employed / Entrepreneur", "Internship / Attachment",
-]);
-
 const ACCEPTED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 const ACCEPTED_MIME = [
   "text/csv",
@@ -366,7 +362,7 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
         errs.push({ row: rowNum, col: "student_number", msg: "Format: MUST/PG/123/2020" });
       if (r.linkedin_url?.trim() && !/^https?:\/\/.+/.test(r.linkedin_url.trim()))
         errs.push({ row: rowNum, col: "linkedin_url", msg: "Must start with https://" });
-      if (EMPLOYED_STATUSES.has(r.employment_status?.trim())) {
+      if (EMPLOYED_STATUSES_SET.has(r.employment_status?.trim())) {
         if (!r.employer_name?.trim()) errs.push({ row: rowNum, col: "employer_name", msg: "Required when employed" });
         if (!r.sector?.trim())        errs.push({ row: rowNum, col: "sector",        msg: "Required when employed" });
       }
@@ -514,7 +510,7 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
               <p><span className="font-semibold text-foreground">school</span> (use ID): {schools.map((s) => s.id).join(", ")}</p>
               <p><span className="font-semibold text-foreground">department</span> (use ID): see school reference above — use department IDs (e.g. cs, it, bus…)</p>
               <p><span className="font-semibold text-foreground">programme:</span> Use exact programme name (see template)</p>
-              <p><span className="font-semibold text-foreground">employment_status:</span> {EMPLOYMENT_STATUSES.join(" | ")}</p>
+              <p><span className="font-semibold text-foreground">employment_status:</span> {ALL_EMPLOYMENT_STATUSES.join(" | ")}</p>
               <p><span className="font-semibold text-foreground">sector:</span> {EMPLOYMENT_SECTORS.slice(0, 5).join(" | ")} …</p>
             </div>
           </details>
