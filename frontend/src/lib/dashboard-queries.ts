@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { backendGetJson } from "@/lib/backend-api";
 
 export type Graduate = {
   id: number;
@@ -39,129 +39,32 @@ export type DashboardData = {
   employmentRate: number;
 };
 
+// Throws BackendError — let the page handle it
 export async function fetchDashboardData(): Promise<DashboardData> {
-  const { data: graduates, error } = await supabase
-    .from("graduates")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Dashboard fetch error:", error);
-    return emptyData();
-  }
-
-  const rows = (graduates ?? []) as Graduate[];
-  const total = rows.length;
-
-  if (total === 0) return emptyData();
-
-  const employed = rows.filter((r) =>
-    ["Employed (Full-time)", "Employed (Part-time)", "Self-employed / Entrepreneur", "Internship / Attachment"].includes(r.employment_status)
-  );
-
-  // By school
-  const schoolMap = new Map<string, number>();
-  rows.forEach((r) => schoolMap.set(r.school_name, (schoolMap.get(r.school_name) ?? 0) + 1));
-  const bySchool = [...schoolMap.entries()]
-    .map(([name, count]) => ({ name: shortSchool(name), count }))
-    .sort((a, b) => b.count - a.count);
-
-  // By status
-  const statusMap = new Map<string, number>();
-  rows.forEach((r) => statusMap.set(r.employment_status, (statusMap.get(r.employment_status) ?? 0) + 1));
-  const byStatus = [...statusMap.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
-  // By year with employment rate
-  const yearMap = new Map<number, { count: number; employed: number }>();
-  rows.forEach((r) => {
-    const y = r.graduation_year;
-    const entry = yearMap.get(y) ?? { count: 0, employed: 0 };
-    entry.count++;
-    if (employed.some((e) => e.id === r.id)) entry.employed++;
-    yearMap.set(y, entry);
-  });
-  const byYear = [...yearMap.entries()]
-    .map(([year, v]) => ({ year, ...v }))
-    .sort((a, b) => a.year - b.year);
-
-  // By sector
-  const sectorMap = new Map<string, number>();
-  rows.forEach((r) => {
-    if (r.sector) sectorMap.set(r.sector, (sectorMap.get(r.sector) ?? 0) + 1);
-  });
-  const bySector = [...sectorMap.entries()]
-    .map(([name, count]) => ({ name: shortSector(name), count }))
-    .sort((a, b) => b.count - a.count);
-
-  // By campus
-  const campusMap = new Map<string, number>();
-  rows.forEach((r) => campusMap.set(r.campus, (campusMap.get(r.campus) ?? 0) + 1));
-  const byCampus = [...campusMap.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
-  // By department
-  const deptMap = new Map<string, { school: string; count: number }>();
-  rows.forEach((r) => {
-    const key = r.department_name;
-    const entry = deptMap.get(key) ?? { school: shortSchool(r.school_name), count: 0 };
-    entry.count++;
-    deptMap.set(key, entry);
-  });
-  const byDepartment = [...deptMap.entries()]
-    .map(([name, v]) => ({ name: shortDept(name), ...v }))
-    .sort((a, b) => b.count - a.count);
-
-  // By months to employ
-  const mteMap = new Map<string, number>();
-  rows.forEach((r) => {
-    if (r.months_to_employ) mteMap.set(r.months_to_employ, (mteMap.get(r.months_to_employ) ?? 0) + 1);
-  });
-  const byMonthsToEmploy = [...mteMap.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
+  const resp = await backendGetJson<BackendDashboardResponse>("/api/dashboard");
   return {
-    graduates: rows,
-    totalCount: total,
-    bySchool,
-    byStatus,
-    byYear,
-    bySector,
-    byCampus,
-    byDepartment,
-    byMonthsToEmploy,
-    employmentRate: total > 0 ? Math.round((employed.length / total) * 100) : 0,
+    graduates:        resp.graduates,
+    totalCount:       resp.total_count,
+    bySchool:         resp.by_school,
+    byStatus:         resp.by_status,
+    byYear:           resp.by_year,
+    bySector:         resp.by_sector,
+    byCampus:         resp.by_campus,
+    byDepartment:     resp.by_department,
+    byMonthsToEmploy: resp.by_months_to_employ,
+    employmentRate:   resp.employment_rate,
   };
 }
 
-function emptyData(): DashboardData {
-  return {
-    graduates: [],
-    totalCount: 0,
-    bySchool: [],
-    byStatus: [],
-    byYear: [],
-    bySector: [],
-    byCampus: [],
-    byDepartment: [],
-    byMonthsToEmploy: [],
-    employmentRate: 0,
-  };
-}
-
-function shortSchool(name: string): string {
-  const match = name.match(/\(([^)]+)\)/);
-  return match ? match[1] : name;
-}
-
-function shortDept(name: string): string {
-  return name.replace("Department of ", "");
-}
-
-function shortSector(name: string): string {
-  const match = name.match(/\(([^)]+)\)/);
-  return match ? match[1] : name.replace(" & ", " & ").substring(0, 25);
-}
+type BackendDashboardResponse = {
+  graduates: Graduate[];
+  total_count: number;
+  by_school: { name: string; count: number }[];
+  by_status: { name: string; count: number }[];
+  by_year: { year: number; count: number; employed: number }[];
+  by_sector: { name: string; count: number }[];
+  by_campus: { name: string; count: number }[];
+  by_department: { name: string; school: string; count: number }[];
+  by_months_to_employ: { name: string; count: number }[];
+  employment_rate: number;
+};

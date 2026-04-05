@@ -6,6 +6,6 @@ cd "$root_dir"
 
 solution="backend/graduate-system-worker.sln"
 
-DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 dotnet restore "$solution" --disable-build-servers
-DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 dotnet build "$solution" --disable-build-servers
-DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 dotnet test "$solution" --disable-build-servers
+DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 dotnet restore "$solution" --disable-build-servers -m:1
+DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 dotnet build "$solution" --disable-build-servers -m:1
+DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 dotnet test "$solution" --disable-build-servers -m:1

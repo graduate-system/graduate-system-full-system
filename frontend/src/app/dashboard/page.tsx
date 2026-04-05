@@ -1,8 +1,19 @@
 import { fetchDashboardData } from "@/lib/dashboard-queries";
 import { DashboardOverview } from "./dashboard-client";
+import { fetchSchools } from "@/lib/must-queries";
+import { BackendErrorView } from "@/components/backend-error-view";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const data = await fetchDashboardData();
+  let data;
+  try {
+    data = await fetchDashboardData();
+  } catch (err) {
+    return <BackendErrorView error={err} title="Could not load dashboard data" />;
+  }
+
+  const schools = await fetchSchools().catch(() => []);
 
   return (
     <div>
@@ -17,7 +28,7 @@ export default async function DashboardPage() {
           )}
         </p>
       </div>
-      <DashboardOverview data={data} />
+      <DashboardOverview data={data} mustSchools={schools} />
     </div>
   );
 }

@@ -10,6 +10,8 @@ export const metadata = {
   description: "Graduate employability analytics dashboard for MUST committee members.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const authed = await isAuthenticated();
 

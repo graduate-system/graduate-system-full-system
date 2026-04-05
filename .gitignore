@@ -13,11 +13,16 @@ build/
 **/bin/
 **/obj/
 TestResults/
+Api_Data/
 
 # Environment files
 .env
 .env.local
 .env.*.local
+
+# .NET local secrets
+appsettings.Development.json
+appsettings.*.local.json
 
 # Logs
 *.log

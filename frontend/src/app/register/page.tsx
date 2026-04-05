@@ -1,6 +1,7 @@
 import { GraduateForm } from "./graduate-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
+import { fetchSchools } from "@/lib/must-queries";
 
 export const metadata = {
   title: "Graduate Registration | GradTrack Analytics — MUST",
@@ -8,7 +9,9 @@ export const metadata = {
     "Submit your graduate employment details to help Meru University track employability outcomes.",
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const schools = await fetchSchools().catch(() => []);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
@@ -64,7 +67,7 @@ export default function RegisterPage() {
 
       {/* Form */}
       <main className="mx-auto max-w-3xl px-4 py-10 pb-20">
-        <GraduateForm />
+        <GraduateForm schools={schools} />
       </main>
     </div>
   );

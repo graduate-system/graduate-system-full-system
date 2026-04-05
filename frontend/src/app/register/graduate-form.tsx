@@ -5,8 +5,8 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { submitGraduate, type SubmitResult } from "@/lib/actions";
+import { fetchDepartments, fetchProgrammes, type School, type Department } from "@/lib/must-queries";
 import {
-  MUST_SCHOOLS,
   KENYAN_COUNTIES,
   EMPLOYMENT_SECTORS,
   GRADUATION_YEARS,
@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ import { cn } from "@/lib/utils";
 /* ── Zod schema ─────────────────────────────────────── */
 const schema = z
   .object({
-    // Step 1 — Personal
     full_name: z.string().min(3, "Enter your full name"),
     student_number: z.string().optional(),
     email: z.string().email("Enter a valid email").optional().or(z.literal("")),
@@ -33,17 +31,11 @@ const schema = z
       .regex(/^\+?\d{10,15}$/, "Enter a valid phone number (e.g. +254712345678)")
       .optional()
       .or(z.literal("")),
-
-    // Step 2 — Academic
-    campus: z.enum(["Main Campus (Nchiru)", "Meru Town Campus"], {
-      error: "Select your campus",
-    }),
+    campus: z.enum(["Main Campus (Nchiru)", "Meru Town Campus"], { error: "Select your campus" }),
     school: z.string().min(1, "Select your school"),
     department: z.string().min(1, "Select your department"),
     programme: z.string().min(1, "Select your programme"),
     graduation_year: z.string().min(1, "Select graduation year"),
-
-    // Step 3 — Employment
     employment_status: z.enum(
       [
         "Employed (Full-time)",
@@ -62,8 +54,6 @@ const schema = z
     employment_county: z.string().optional(),
     months_to_employ: z.string().optional(),
     linkedin_url: z.string().url("Enter a valid URL").optional().or(z.literal("")),
-
-    // Consent
     consent: z.literal(true, { message: "You must consent to continue" }),
   })
   .refine((d) => d.email || d.phone, {
@@ -75,7 +65,7 @@ type FormData = z.infer<typeof schema>;
 
 const STEPS = ["Personal Info", "Academic Details", "Employment"];
 
-/* ── Reusable field wrapper ─────────────────────────── */
+/* ── Field wrapper ──────────────────────────────────── */
 function Field({
   label, required, error, children, hint,
 }: {
@@ -100,18 +90,20 @@ function Field({
 
 /* ── Styled native select ───────────────────────────── */
 function NativeSelect({
-  value, onChange, children, placeholder, hasError,
+  value, onChange, children, placeholder, hasError, disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
   children: React.ReactNode;
   placeholder?: string;
   hasError?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       className={cn(
         "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background",
         "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -126,12 +118,18 @@ function NativeSelect({
 }
 
 /* ── Main form component ────────────────────────────── */
-export function GraduateForm() {
+export function GraduateForm({ schools }: { schools: School[] }) {
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submittedId, setSubmittedId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Cascading data state
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [programmes, setProgrammes] = useState<string[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(false);
+  const [loadingProgs, setLoadingProgs] = useState(false);
 
   const {
     register,
@@ -169,17 +167,35 @@ export function GraduateForm() {
   const watchedDept = watch("department");
   const watchedEmpStatus = watch("employment_status");
 
-  const selectedSchool = MUST_SCHOOLS.find((s) => s.id === watchedSchool);
-  const selectedDept = selectedSchool?.departments.find((d) => d.id === watchedDept);
-
+  // Fetch departments when school changes
   useEffect(() => {
     setValue("department", "");
     setValue("programme", "");
+    setDepartments([]);
+    setProgrammes([]);
+
+    if (!watchedSchool) return;
+
+    setLoadingDepts(true);
+    fetchDepartments(watchedSchool)
+      .then(setDepartments)
+      .catch(() => setDepartments([]))
+      .finally(() => setLoadingDepts(false));
   }, [watchedSchool, setValue]);
 
+  // Fetch programmes when department changes
   useEffect(() => {
     setValue("programme", "");
-  }, [watchedDept, setValue]);
+    setProgrammes([]);
+
+    if (!watchedSchool || !watchedDept) return;
+
+    setLoadingProgs(true);
+    fetchProgrammes(watchedSchool, watchedDept)
+      .then(setProgrammes)
+      .catch(() => setProgrammes([]))
+      .finally(() => setLoadingProgs(false));
+  }, [watchedDept, watchedSchool, setValue]);
 
   const isEmployed =
     watchedEmpStatus &&
@@ -195,9 +211,7 @@ export function GraduateForm() {
     const valid = await trigger(stepFields[step]);
     if (valid) setStep((s) => s + 1);
   }
-  function prevStep() {
-    setStep((s) => s - 1);
-  }
+  function prevStep() { setStep((s) => s - 1); }
 
   async function onSubmit(data: FormData) {
     setSubmitError(null);
@@ -229,28 +243,19 @@ export function GraduateForm() {
     });
   }
 
-  // Validate ALL steps before native submit; jump to first failing step
   async function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitError(null);
     for (let i = 0; i < stepFields.length; i++) {
       const valid = await trigger(stepFields[i]);
-      if (!valid) {
-        setStep(i);
-        return;
-      }
+      if (!valid) { setStep(i); return; }
     }
-    // All steps valid — also run the full schema (catches .refine cross-field rules)
     handleSubmit(
       onSubmit,
       (fieldErrors) => {
-        // Cross-field validation failed — find which step has the error
         const errorKeys = Object.keys(fieldErrors) as (keyof FormData)[];
         for (let i = 0; i < stepFields.length; i++) {
-          if (stepFields[i].some((f) => errorKeys.includes(f))) {
-            setStep(i);
-            return;
-          }
+          if (stepFields[i].some((f) => errorKeys.includes(f))) { setStep(i); return; }
         }
       },
     )();
@@ -266,8 +271,7 @@ export function GraduateForm() {
           </h2>
           <p className="max-w-md text-sm text-muted-foreground">
             Your information has been recorded. The MUST Career Services team
-            will use your data to improve employability support for future
-            graduates.
+            will use your data to improve employability support for future graduates.
           </p>
           <Badge className="mt-2 bg-green-700 text-white px-4 py-1 text-sm">
             Submission ID: #{submittedId}
@@ -275,10 +279,7 @@ export function GraduateForm() {
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => {
-              setSubmitted(false);
-              setStep(0);
-            }}
+            onClick={() => { setSubmitted(false); setStep(0); }}
           >
             Submit Another Response
           </Button>
@@ -308,10 +309,7 @@ export function GraduateForm() {
           {STEPS.map((s, i) => (
             <div
               key={s}
-              className={cn(
-                "h-1 flex-1 rounded-full transition-all",
-                i <= step ? "bg-amber-500" : "bg-muted",
-              )}
+              className={cn("h-1 flex-1 rounded-full transition-all", i <= step ? "bg-amber-500" : "bg-muted")}
             />
           ))}
         </div>
@@ -322,9 +320,7 @@ export function GraduateForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">
-                1
-              </span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">1</span>
               Personal Information
             </CardTitle>
             <CardDescription>
@@ -340,22 +336,11 @@ export function GraduateForm() {
               />
             </Field>
 
-            <Field
-              label="Student Number"
-              error={errors.student_number?.message}
-              hint="Optional — as on your transcript (e.g. MUST/PG/123/2020)"
-            >
-              <Input
-                placeholder="MUST/PG/123/2020"
-                {...register("student_number")}
-              />
+            <Field label="Student Number" error={errors.student_number?.message} hint="Optional — as on your transcript (e.g. MUST/PG/123/2020)">
+              <Input placeholder="MUST/PG/123/2020" {...register("student_number")} />
             </Field>
 
-            <Field
-              label="Email Address"
-              error={errors.email?.message}
-              hint="Optional if phone is provided"
-            >
+            <Field label="Email Address" error={errors.email?.message} hint="Optional if phone is provided">
               <Input
                 type="email"
                 placeholder="jane@example.com"
@@ -364,11 +349,7 @@ export function GraduateForm() {
               />
             </Field>
 
-            <Field
-              label="Phone Number"
-              error={errors.phone?.message}
-              hint="Optional if email is provided (e.g. +254712345678)"
-            >
+            <Field label="Phone Number" error={errors.phone?.message} hint="Optional if email is provided (e.g. +254712345678)">
               <Input
                 type="tel"
                 placeholder="+254712345678"
@@ -385,9 +366,7 @@ export function GraduateForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">
-                2
-              </span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">2</span>
               Academic Details
             </CardTitle>
             <CardDescription>
@@ -400,20 +379,33 @@ export function GraduateForm() {
                 name="campus"
                 control={control}
                 render={({ field }) => (
-                  <RadioGroup
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
-                    className="flex flex-wrap gap-4 pt-1"
-                  >
+                  <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                     {(["Main Campus (Nchiru)", "Meru Town Campus"] as const).map((c) => (
-                      <div key={c} className="flex items-center gap-2">
-                        <RadioGroupItem value={c} id={`campus-${c}`} />
-                        <Label htmlFor={`campus-${c}`} className="font-normal cursor-pointer text-sm">
-                          {c}
-                        </Label>
-                      </div>
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => field.onChange(c)}
+                        className={cn(
+                          "flex flex-1 items-center gap-3 rounded-lg border px-4 py-3 text-sm transition-all text-left",
+                          field.value === c
+                            ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 font-semibold text-amber-700 dark:text-amber-400 ring-1 ring-amber-500"
+                            : "border-border hover:border-amber-300 hover:bg-muted/40",
+                        )}
+                      >
+                        <span className={cn(
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                          field.value === c
+                            ? "border-amber-500 bg-amber-500"
+                            : "border-muted-foreground/40",
+                        )}>
+                          {field.value === c && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                        {c}
+                      </button>
                     ))}
-                  </RadioGroup>
+                  </div>
                 )}
               />
             </Field>
@@ -429,10 +421,8 @@ export function GraduateForm() {
                     placeholder="— Select your school —"
                     hasError={!!errors.school}
                   >
-                    {MUST_SCHOOLS.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
+                    {schools.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </NativeSelect>
                 )}
@@ -447,13 +437,18 @@ export function GraduateForm() {
                   <NativeSelect
                     value={field.value ?? ""}
                     onChange={field.onChange}
-                    placeholder={selectedSchool ? "— Select department —" : "— Select school first —"}
+                    placeholder={
+                      !watchedSchool
+                        ? "— Select school first —"
+                        : loadingDepts
+                        ? "Loading departments…"
+                        : "— Select department —"
+                    }
                     hasError={!!errors.department}
+                    disabled={!watchedSchool || loadingDepts}
                   >
-                    {selectedSchool?.departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </NativeSelect>
                 )}
@@ -468,13 +463,18 @@ export function GraduateForm() {
                   <NativeSelect
                     value={field.value ?? ""}
                     onChange={field.onChange}
-                    placeholder={selectedDept ? "— Select programme —" : "— Select department first —"}
+                    placeholder={
+                      !watchedDept
+                        ? "— Select department first —"
+                        : loadingProgs
+                        ? "Loading programmes…"
+                        : "— Select programme —"
+                    }
                     hasError={!!errors.programme}
+                    disabled={!watchedDept || loadingProgs}
                   >
-                    {selectedDept?.programmes.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
+                    {programmes.map((p) => (
+                      <option key={p} value={p}>{p}</option>
                     ))}
                   </NativeSelect>
                 )}
@@ -493,9 +493,7 @@ export function GraduateForm() {
                     hasError={!!errors.graduation_year}
                   >
                     {GRADUATION_YEARS.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
+                      <option key={y} value={y}>{y}</option>
                     ))}
                   </NativeSelect>
                 )}
@@ -510,9 +508,7 @@ export function GraduateForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">
-                3
-              </span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">3</span>
               Employment Information
             </CardTitle>
             <CardDescription>
@@ -522,7 +518,7 @@ export function GraduateForm() {
           <CardContent className="grid gap-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field label="Current Employment Status" required error={errors.employment_status?.message}>
-                  <Controller
+                <Controller
                   name="employment_status"
                   control={control}
                   render={({ field }) => (
@@ -538,21 +534,29 @@ export function GraduateForm() {
                           "Unemployed — Not Seeking",
                         ] as const
                       ).map((s) => (
-                        <label
+                        <button
                           key={s}
-                          htmlFor={`emp-${s}`}
+                          type="button"
+                          onClick={() => field.onChange(s)}
                           className={cn(
-                            "flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-all",
+                            "flex items-center gap-3 rounded-lg border px-3 py-3 text-sm transition-all text-left",
                             field.value === s
-                              ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 font-medium text-amber-700 dark:text-amber-400"
+                              ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 font-semibold text-amber-700 dark:text-amber-400 ring-1 ring-amber-500"
                               : "border-border hover:border-amber-300 hover:bg-muted/40",
                           )}
                         >
-                          <RadioGroup value={field.value ?? ""} onValueChange={field.onChange}>
-                            <RadioGroupItem value={s} id={`emp-${s}`} />
-                          </RadioGroup>
+                          <span className={cn(
+                            "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                            field.value === s
+                              ? "border-amber-500 bg-amber-500"
+                              : "border-muted-foreground/40",
+                          )}>
+                            {field.value === s && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                            )}
+                          </span>
                           {s}
-                        </label>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -575,15 +579,9 @@ export function GraduateForm() {
                     name="sector"
                     control={control}
                     render={({ field }) => (
-                      <NativeSelect
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                        placeholder="— Select sector —"
-                      >
+                      <NativeSelect value={field.value ?? ""} onChange={field.onChange} placeholder="— Select sector —">
                         {EMPLOYMENT_SECTORS.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
+                          <option key={s} value={s}>{s}</option>
                         ))}
                       </NativeSelect>
                     )}
@@ -595,36 +593,22 @@ export function GraduateForm() {
                     name="employment_county"
                     control={control}
                     render={({ field }) => (
-                      <NativeSelect
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                        placeholder="— Select location —"
-                      >
+                      <NativeSelect value={field.value ?? ""} onChange={field.onChange} placeholder="— Select location —">
                         <option value="Outside Kenya">Outside Kenya</option>
                         {KENYAN_COUNTIES.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
+                          <option key={c} value={c}>{c}</option>
                         ))}
                       </NativeSelect>
                     )}
                   />
                 </Field>
 
-                <Field
-                  label="Months to First Employment"
-                  error={errors.months_to_employ?.message}
-                  hint="How long after graduation did you get your first job?"
-                >
+                <Field label="Months to First Employment" error={errors.months_to_employ?.message} hint="How long after graduation did you get your first job?">
                   <Controller
                     name="months_to_employ"
                     control={control}
                     render={({ field }) => (
-                      <NativeSelect
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                        placeholder="— Select —"
-                      >
+                      <NativeSelect value={field.value ?? ""} onChange={field.onChange} placeholder="— Select —">
                         {[
                           "Already employed (internship converted)",
                           "Less than 1 month",
@@ -634,25 +618,15 @@ export function GraduateForm() {
                           "More than 12 months",
                           "Still seeking",
                         ].map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
+                          <option key={o} value={o}>{o}</option>
                         ))}
                       </NativeSelect>
                     )}
                   />
                 </Field>
 
-                <Field
-                  label="LinkedIn Profile URL"
-                  error={errors.linkedin_url?.message}
-                  hint="Optional — helps employers connect with you"
-                >
-                  <Input
-                    type="url"
-                    placeholder="https://linkedin.com/in/yourname"
-                    {...register("linkedin_url")}
-                  />
+                <Field label="LinkedIn Profile URL" error={errors.linkedin_url?.message} hint="Optional — helps employers connect with you">
+                  <Input type="url" placeholder="https://linkedin.com/in/yourname" {...register("linkedin_url")} />
                 </Field>
               </>
             )}
@@ -698,18 +672,11 @@ export function GraduateForm() {
         </div>
       )}
 
-      {/* Navigation buttons */}
+      {/* Navigation */}
       <div className="mt-6 flex items-center justify-between gap-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={prevStep}
-          disabled={step === 0}
-          className="gap-2"
-        >
+        <Button type="button" variant="outline" onClick={prevStep} disabled={step === 0} className="gap-2">
           ← Back
         </Button>
-
         <div className="flex items-center gap-2">
           {step < STEPS.length - 1 ? (
             <Button
@@ -740,11 +707,7 @@ export function GraduateForm() {
             onClick={() => i < step && setStep(i)}
             className={cn(
               "h-2 rounded-full transition-all",
-              i === step
-                ? "w-6 bg-amber-500"
-                : i < step
-                  ? "w-2 bg-green-500 cursor-pointer"
-                  : "w-2 bg-muted",
+              i === step ? "w-6 bg-amber-500" : i < step ? "w-2 bg-green-500 cursor-pointer" : "w-2 bg-muted",
             )}
             aria-label={`Go to step ${i + 1}`}
           />

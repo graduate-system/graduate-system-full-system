@@ -10,11 +10,16 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import {
-  MUST_SCHOOLS,
   KENYAN_COUNTIES,
   EMPLOYMENT_SECTORS,
   GRADUATION_YEARS,
 } from "@/lib/must-data";
+import {
+  fetchDepartments,
+  fetchProgrammes,
+  type School,
+  type Department,
+} from "@/lib/must-queries";
 import {
   submitGraduate,
   bulkInsertGraduates,
@@ -38,7 +43,7 @@ const CAMPUSES = ["Main Campus (Nchiru)", "Meru Town Campus"] as const;
 type Mode = "single" | "csv";
 
 /* ── Main component ── */
-export function UploadClient() {
+export function UploadClient({ mustSchools }: { mustSchools: School[] }) {
   const [mode, setMode] = useState<Mode>("single");
 
   return (
@@ -66,7 +71,7 @@ export function UploadClient() {
         ))}
       </div>
 
-      {mode === "single" ? <SingleEntryForm /> : <CsvUpload />}
+      {mode === "single" ? <SingleEntryForm schools={mustSchools} /> : <CsvUpload schools={mustSchools} />}
     </div>
   );
 }
@@ -74,20 +79,40 @@ export function UploadClient() {
 /* ═══════════════════════════════════════════════════════
    SINGLE ENTRY FORM
    ═══════════════════════════════════════════════════════ */
-function SingleEntryForm() {
+function SingleEntryForm({ schools }: { schools: School[] }) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const [school, setSchool] = useState("");
   const [dept, setDept] = useState("");
-
-  const selectedSchool = MUST_SCHOOLS.find((s) => s.id === school);
-  const selectedDept = selectedSchool?.departments.find((d) => d.id === dept);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [programmes, setProgrammes] = useState<string[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(false);
+  const [loadingProgs, setLoadingProgs] = useState(false);
 
   function handleSchoolChange(v: string) {
     setSchool(v);
     setDept("");
+    setProgrammes([]);
+    setDepartments([]);
+    if (!v) return;
+    setLoadingDepts(true);
+    fetchDepartments(v)
+      .then(setDepartments)
+      .catch(() => setDepartments([]))
+      .finally(() => setLoadingDepts(false));
+  }
+
+  function handleDeptChange(v: string) {
+    setDept(v);
+    setProgrammes([]);
+    if (!v || !school) return;
+    setLoadingProgs(true);
+    fetchProgrammes(school, v)
+      .then(setProgrammes)
+      .catch(() => setProgrammes([]))
+      .finally(() => setLoadingProgs(false));
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -166,17 +191,17 @@ function SingleEntryForm() {
               </Fld>
               <Fld label="School *">
                 <Sel name="school" placeholder="Select school" value={school} onChange={handleSchoolChange}>
-                  {MUST_SCHOOLS.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </Sel>
               </Fld>
               <Fld label="Department *">
-                <Sel name="department" placeholder={selectedSchool ? "Select department" : "Select school first"} value={dept} onChange={setDept}>
-                  {selectedSchool?.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                <Sel name="department" placeholder={!school ? "Select school first" : loadingDepts ? "Loading…" : "Select department"} value={dept} onChange={handleDeptChange} disabled={!school || loadingDepts}>
+                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </Sel>
               </Fld>
               <Fld label="Programme *">
-                <Sel name="programme" placeholder={selectedDept ? "Select programme" : "Select department first"}>
-                  {selectedDept?.programmes.map((p) => <option key={p} value={p}>{p}</option>)}
+                <Sel name="programme" placeholder={!dept ? "Select department first" : loadingProgs ? "Loading…" : "Select programme"} disabled={!dept || loadingProgs}>
+                  {programmes.map((p) => <option key={p} value={p}>{p}</option>)}
                 </Sel>
               </Fld>
               <Fld label="Graduation Year *">
@@ -248,7 +273,7 @@ const CSV_COLUMNS = [
 
 const REQUIRED_COLS = ["full_name", "campus", "school", "department", "programme", "graduation_year", "employment_status"];
 
-function CsvUpload() {
+function CsvUpload({ schools }: { schools: School[] }) {
   const [isPending, startTransition] = useTransition();
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
@@ -390,8 +415,8 @@ function CsvUpload() {
             </summary>
             <div className="mt-2 rounded-lg border p-3 space-y-2 text-[11px] text-muted-foreground bg-muted/30">
               <p><span className="font-semibold text-foreground">campus:</span> {CAMPUSES.join(" | ")}</p>
-              <p><span className="font-semibold text-foreground">school</span> (use ID): {MUST_SCHOOLS.map((s) => s.id).join(", ")}</p>
-              <p><span className="font-semibold text-foreground">department</span> (use ID): {MUST_SCHOOLS.flatMap((s) => s.departments.map((d) => d.id)).join(", ")}</p>
+              <p><span className="font-semibold text-foreground">school</span> (use ID): {schools.map((s) => s.id).join(", ")}</p>
+              <p><span className="font-semibold text-foreground">department</span> (use ID): see school reference above — use department IDs (e.g. cs, it, bus…)</p>
               <p><span className="font-semibold text-foreground">programme:</span> Use exact programme name (see template)</p>
               <p><span className="font-semibold text-foreground">employment_status:</span> {EMPLOYMENT_STATUSES.join(" | ")}</p>
               <p><span className="font-semibold text-foreground">sector:</span> {EMPLOYMENT_SECTORS.slice(0, 5).join(" | ")} …</p>
@@ -544,16 +569,17 @@ function Fld({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function Sel({ name, placeholder, children, value, onChange }: {
+function Sel({ name, placeholder, children, value, onChange, disabled }: {
   name: string; placeholder: string; children: React.ReactNode;
-  value?: string; onChange?: (v: string) => void;
+  value?: string; onChange?: (v: string) => void; disabled?: boolean;
 }) {
   return (
     <select
       name={name}
       value={value}
       onChange={onChange ? (e) => onChange(e.target.value) : undefined}
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      disabled={disabled}
+      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
     >
       <option value="">{placeholder}</option>
       {children}

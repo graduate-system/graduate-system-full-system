@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { DashboardData, Graduate } from "@/lib/dashboard-queries";
-import { MUST_SCHOOLS } from "@/lib/must-data";
+import type { School as MustSchool } from "@/lib/must-queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import {
@@ -91,7 +91,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 /* ── Main Overview ── */
-export function DashboardOverview({ data }: { data: DashboardData }) {
+export function DashboardOverview({ data, mustSchools }: { data: DashboardData; mustSchools: MustSchool[] }) {
   const [schoolFilter, setSchoolFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -139,10 +139,10 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-5">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-2.5 sm:p-3">
-        <span className="text-xs font-bold text-foreground shrink-0">🔍 Filters</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-2.5 sm:p-3">
+          <span className="text-xs font-bold text-foreground shrink-0">🔍 Filters</span>
         <FilterSelect label="School" value={schoolFilter} onChange={setSchoolFilter}
-          options={MUST_SCHOOLS.map((s) => ({ value: s.id, label: s.name.match(/\(([^)]+)\)/)?.[1] ?? s.name }))} />
+          options={mustSchools.map((s) => ({ value: s.id, label: s.name.match(/\(([^)]+)\)/)?.[1] ?? s.name }))} />
         <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter}
           options={uniqueYears.map((y) => ({ value: String(y), label: String(y) }))} />
         <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter}

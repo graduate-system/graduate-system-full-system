@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { verifyPin } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,11 +18,24 @@ export function PinGate() {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await verifyPin(pin);
-      if (result.success) {
+      try {
+        const res = await fetch("/api/committee/login", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pin }),
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const maybeJson = (await res.json().catch(() => null)) as unknown;
+          const msgFromJson = getErrorMessage(maybeJson);
+          throw new Error(msgFromJson || (res.status === 401 ? "Incorrect PIN. Please try again." : "Verification failed."));
+        }
+
         router.refresh();
-      } else {
-        setError(result.error ?? "Verification failed.");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Verification failed.";
+        setError(msg);
         setPin("");
       }
     });
@@ -81,4 +93,11 @@ export function PinGate() {
       </Card>
     </div>
   );
+}
+
+function getErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  if (!("error" in payload)) return null;
+  const error = (payload as { error?: unknown }).error;
+  return typeof error === "string" && error.trim().length > 0 ? error : null;
 }

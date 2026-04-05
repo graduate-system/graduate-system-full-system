@@ -14,10 +14,14 @@
           "Microsoft.OpenApi": "2.0.0"
         },
         "compile": {
-          "lib/net10.0/Microsoft.AspNetCore.OpenApi.dll": {}
+          "lib/net10.0/Microsoft.AspNetCore.OpenApi.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
-          "lib/net10.0/Microsoft.AspNetCore.OpenApi.dll": {}
+          "lib/net10.0/Microsoft.AspNetCore.OpenApi.dll": {
+            "related": ".xml"
+          }
         },
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
@@ -60,12 +64,12 @@
         "type": "package",
         "compile": {
           "lib/net8.0/Microsoft.OpenApi.dll": {
-            "related": ".pdb"
+            "related": ".pdb;.xml"
           }
         },
         "runtime": {
           "lib/net8.0/Microsoft.OpenApi.dll": {
-            "related": ".pdb"
+            "related": ".pdb;.xml"
           }
         }
       },
@@ -949,8 +953,8 @@
     },
     "Api/1.0.0": {
       "type": "project",
-      "path": "../../Api.csproj",
-      "msbuildProject": "../../Api.csproj"
+      "path": "../../Api/Api.csproj",
+      "msbuildProject": "../../Api/Api.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -963,32 +967,33 @@
     ]
   },
   "packageFolders": {
-    "/tmp/cursor-sandbox-cache/15a8104d9882d99e60f92cfa377888f4/nuget": {}
+    "/home/munene/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/workspaces/graduate-system-worker/tests/Api.Tests/Api.Tests.csproj",
+      "projectUniqueName": "/home/munene/dev/school/graduate system/backend/tests/Api.Tests/Api.Tests.csproj",
       "projectName": "Api.Tests",
-      "projectPath": "/workspaces/graduate-system-worker/tests/Api.Tests/Api.Tests.csproj",
-      "packagesPath": "/tmp/cursor-sandbox-cache/15a8104d9882d99e60f92cfa377888f4/nuget",
-      "outputPath": "/workspaces/graduate-system-worker/tests/Api.Tests/obj/",
+      "projectPath": "/home/munene/dev/school/graduate system/backend/tests/Api.Tests/Api.Tests.csproj",
+      "packagesPath": "/home/munene/.nuget/packages/",
+      "outputPath": "/home/munene/dev/school/graduate system/backend/tests/Api.Tests/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/root/.nuget/NuGet/NuGet.Config"
+        "/home/munene/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
+        "/usr/lib/dotnet/library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "/workspaces/graduate-system-worker/Api.csproj": {
-              "projectPath": "/workspaces/graduate-system-worker/Api.csproj"
+            "/home/munene/dev/school/graduate system/backend/Api/Api.csproj": {
+              "projectPath": "/home/munene/dev/school/graduate system/backend/Api/Api.csproj"
             }
           }
         }
@@ -1042,7 +1047,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.103/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",

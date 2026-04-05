@@ -1,0 +1,33 @@
+@Api_HostAddress = http://localhost:5291
+
+### Health
+GET {{Api_HostAddress}}/api/health
+Accept: application/json
+
+###
+
+### MUST metadata
+GET {{Api_HostAddress}}/api/metadata/must
+Accept: application/json
+
+###
+
+### Committee login (sets cookie)
+POST {{Api_HostAddress}}/api/committee/login
+Content-Type: application/json
+
+{
+  "pin": "123456"
+}
+
+###
+
+### Committee session
+GET {{Api_HostAddress}}/api/committee/session
+Accept: application/json
+
+###
+
+### Dashboard (requires cookie)
+GET {{Api_HostAddress}}/api/dashboard
+Accept: application/json

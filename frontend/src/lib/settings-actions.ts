@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { backendGetJson, backendSendJson } from "@/lib/backend-api";
 
 export type DbStats = {
   totalGraduates: number;
@@ -11,56 +11,35 @@ export type DbStats = {
 };
 
 export async function fetchDbStats(): Promise<DbStats> {
-  const { count } = await supabase
-    .from("graduates")
-    .select("*", { count: "exact", head: true });
-
-  const { data: oldest } = await supabase
-    .from("graduates")
-    .select("created_at")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .single();
-
-  const { data: newest } = await supabase
-    .from("graduates")
-    .select("created_at")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  const { data: schools } = await supabase
-    .from("graduates")
-    .select("school_id")
-    .limit(1000);
-
-  const { data: progs } = await supabase
-    .from("graduates")
-    .select("programme_id")
-    .limit(1000);
-
+  const resp = await backendGetJson<BackendDbStatsResponse>("/api/admin/stats");
   return {
-    totalGraduates: count ?? 0,
-    oldestRecord: oldest?.created_at ?? null,
-    newestRecord: newest?.created_at ?? null,
-    schoolCount: new Set(schools?.map((r) => r.school_id)).size,
-    programmeCount: new Set(progs?.map((r) => r.programme_id)).size,
+    totalGraduates: resp.total_graduates,
+    oldestRecord:   resp.oldest_record,
+    newestRecord:   resp.newest_record,
+    schoolCount:    resp.school_count,
+    programmeCount: resp.programme_count,
   };
 }
 
 export async function purgeAllGraduates(): Promise<{ success: boolean; deleted: number; error?: string }> {
-  const { count } = await supabase
-    .from("graduates")
-    .select("*", { count: "exact", head: true });
-
-  const { error } = await supabase
-    .from("graduates")
-    .delete()
-    .neq("id", 0); // delete all rows
-
-  if (error) {
-    return { success: false, deleted: 0, error: error.message };
+  try {
+    const resp = await backendSendJson<{ success: boolean; deleted: number; error?: string }>(
+      "/api/admin/graduates",
+      "DELETE",
+      undefined,
+      { "x-confirm-purge": "YES" },
+    );
+    return resp;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected error";
+    return { success: false, deleted: 0, error: message };
   }
-
-  return { success: true, deleted: count ?? 0 };
 }
+
+type BackendDbStatsResponse = {
+  total_graduates: number;
+  oldest_record: string | null;
+  newest_record: string | null;
+  school_count: number;
+  programme_count: number;
+};

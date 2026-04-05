@@ -1,6 +1,15 @@
 import { UploadClient } from "./upload-client";
+import { fetchSchools } from "@/lib/must-queries";
+import { BackendErrorView } from "@/components/backend-error-view";
 
-export default function UploadPage() {
+export default async function UploadPage() {
+  let schools;
+  try {
+    schools = await fetchSchools();
+  } catch (err) {
+    return <BackendErrorView error={err} title="Could not load school data" />;
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -9,7 +18,7 @@ export default function UploadPage() {
           Add graduate records manually or bulk-upload from a CSV file.
         </p>
       </div>
-      <UploadClient />
+      <UploadClient mustSchools={schools} />
     </div>
   );
 }

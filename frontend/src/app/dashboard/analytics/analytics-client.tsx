@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { DashboardData } from "@/lib/dashboard-queries";
-import { MUST_SCHOOLS } from "@/lib/must-data";
+import type { School as MustSchool } from "@/lib/must-queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { DashboardBarChart, DashboardPieChart } from "../charts";
@@ -37,7 +37,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export function AnalyticsClient({ data }: { data: DashboardData }) {
+export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mustSchools: MustSchool[] }) {
   const [compareSchool, setCompareSchool] = useState("");
   const [activeTab, setActiveTab] = useState<TabId>("rates");
   const grads = data.graduates;
@@ -109,7 +109,7 @@ export function AnalyticsClient({ data }: { data: DashboardData }) {
   }, [grads, compareSchool]);
 
   const schoolLabel = compareSchool
-    ? MUST_SCHOOLS.find((s) => s.id === compareSchool)?.name.match(/\(([^)]+)\)/)?.[1] ?? "Selected School"
+    ? mustSchools.find((s) => s.id === compareSchool)?.name.match(/\(([^)]+)\)/)?.[1] ?? "Selected School"
     : "All Schools";
 
   return (
@@ -120,7 +120,7 @@ export function AnalyticsClient({ data }: { data: DashboardData }) {
         <select value={compareSchool} onChange={(e) => setCompareSchool(e.target.value)}
           className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring min-w-0">
           <option value="">All Schools</option>
-          {MUST_SCHOOLS.map((s) => (
+          {mustSchools.map((s) => (
             <option key={s.id} value={s.id}>{s.name.match(/\(([^)]+)\)/)?.[1] ?? s.name}</option>
           ))}
         </select>

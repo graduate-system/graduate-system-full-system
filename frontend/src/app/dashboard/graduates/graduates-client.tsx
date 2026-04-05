@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { Graduate } from "@/lib/dashboard-queries";
-import { MUST_SCHOOLS } from "@/lib/must-data";
+import type { School as MustSchool } from "@/lib/must-queries";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
   "Unemployed — Not Seeking": "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 };
 
-export function GraduatesPageClient({ graduates }: { graduates: Graduate[] }) {
+export function GraduatesPageClient({ graduates, mustSchools }: { graduates: Graduate[]; mustSchools: MustSchool[] }) {
   const [search, setSearch] = useState("");
   const [schoolFilter, setSchoolFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
@@ -136,7 +136,7 @@ export function GraduatesPageClient({ graduates }: { graduates: Graduate[] }) {
           />
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3">
             <Flt label="School" value={schoolFilter} onChange={(v) => { setSchoolFilter(v); setPage(0); }}
-              options={MUST_SCHOOLS.map((s) => ({ value: s.id, label: shortSchool(s.name) }))} />
+              options={mustSchools.map((s) => ({ value: s.id, label: shortSchool(s.name) }))} />
             <Flt label="Year" value={yearFilter} onChange={(v) => { setYearFilter(v); setPage(0); }}
               options={uniqueYears.map((y) => ({ value: String(y), label: String(y) }))} />
             <Flt label="Status" value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(0); }}

@@ -33,3 +33,47 @@
 /workspaces/graduate-system-worker/bin/Debug/net10.0/Api.dll
 /workspaces/graduate-system-worker/bin/Debug/net10.0/Api.pdb
 /workspaces/graduate-system-worker/obj/Debug/net10.0/ref/Api.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Api.staticwebassets.endpoints.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/appsettings.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/Api.deps.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/Api.runtimeconfig.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/Api.staticwebassets.endpoints.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/Api.Tests.deps.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/Api.Tests.runtimeconfig.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/appsettings.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/bin/Debug/net10.0/Data/must-schools.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/obj/Api.Tests.csproj.nuget.dgspec.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/obj/Debug/net10.0/Api.Tests.sourcelink.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/tests/Api.Tests/obj/project.assets.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Api
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Microsoft.AspNetCore.OpenApi.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Microsoft.OpenApi.dll
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.csproj.AssemblyReference.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/rpswa.dswa.cache.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.GeneratedMSBuildEditorConfig.editorconfig
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.AssemblyInfoInputs.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.AssemblyInfo.cs
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.csproj.CoreCompileInputs.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.MvcApplicationPartsAssemblyInfo.cs
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.MvcApplicationPartsAssemblyInfo.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.sourcelink.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/rjimswa.dswa.cache.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/rjsmrazor.dswa.cache.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/rjsmcshtml.dswa.cache.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/scopedcss/bundle/Api.styles.css
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/staticwebassets.build.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/staticwebassets.build.json.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/staticwebassets.development.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/staticwebassets.build.endpoints.json
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/swae.build.ex.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.csproj.Up2Date
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.dll
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/refint/Api.dll
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.pdb
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Api.deps.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Api.runtimeconfig.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Api.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/Api.pdb
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.genruntimeconfig.cache
+/home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/ref/Api.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/appsettings.Development.json
