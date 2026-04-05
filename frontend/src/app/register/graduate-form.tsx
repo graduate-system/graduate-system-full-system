@@ -1,0 +1,755 @@
+"use client";
+
+import { useState, useEffect, useTransition } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { submitGraduate, type SubmitResult } from "@/lib/actions";
+import {
+  MUST_SCHOOLS,
+  KENYAN_COUNTIES,
+  EMPLOYMENT_SECTORS,
+  GRADUATION_YEARS,
+} from "@/lib/must-data";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+
+/* ── Zod schema ─────────────────────────────────────── */
+const schema = z
+  .object({
+    // Step 1 — Personal
+    full_name: z.string().min(3, "Enter your full name"),
+    student_number: z.string().optional(),
+    email: z.string().email("Enter a valid email").optional().or(z.literal("")),
+    phone: z
+      .string()
+      .regex(/^\+?\d{10,15}$/, "Enter a valid phone number (e.g. +254712345678)")
+      .optional()
+      .or(z.literal("")),
+
+    // Step 2 — Academic
+    campus: z.enum(["Main Campus (Nchiru)", "Meru Town Campus"], {
+      error: "Select your campus",
+    }),
+    school: z.string().min(1, "Select your school"),
+    department: z.string().min(1, "Select your department"),
+    programme: z.string().min(1, "Select your programme"),
+    graduation_year: z.string().min(1, "Select graduation year"),
+
+    // Step 3 — Employment
+    employment_status: z.enum(
+      [
+        "Employed (Full-time)",
+        "Employed (Part-time)",
+        "Self-employed / Entrepreneur",
+        "Internship / Attachment",
+        "Further Studies",
+        "Unemployed — Seeking",
+        "Unemployed — Not Seeking",
+      ],
+      { error: "Select your employment status" }
+    ),
+    employer_name: z.string().optional(),
+    job_title: z.string().optional(),
+    sector: z.string().optional(),
+    employment_county: z.string().optional(),
+    months_to_employ: z.string().optional(),
+    linkedin_url: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+
+    // Consent
+    consent: z.literal(true, { message: "You must consent to continue" }),
+  })
+  .refine((d) => d.email || d.phone, {
+    message: "Provide at least an email or phone number",
+    path: ["email"],
+  });
+
+type FormData = z.infer<typeof schema>;
+
+const STEPS = ["Personal Info", "Academic Details", "Employment"];
+
+/* ── Reusable field wrapper ─────────────────────────── */
+function Field({
+  label, required, error, children, hint,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-semibold text-foreground">
+        {label}
+        {required && <span className="ml-1 text-amber-500">*</span>}
+      </Label>
+      {children}
+      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {error && <p className="text-xs font-medium text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/* ── Styled native select ───────────────────────────── */
+function NativeSelect({
+  value, onChange, children, placeholder, hasError,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+  placeholder?: string;
+  hasError?: boolean;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn(
+        "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background",
+        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        hasError ? "border-destructive" : "border-input",
+      )}
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {children}
+    </select>
+  );
+}
+
+/* ── Main form component ────────────────────────────── */
+export function GraduateForm() {
+  const [step, setStep] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submittedId, setSubmittedId] = useState<number | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    trigger,
+    formState: { errors },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      full_name: "",
+      student_number: "",
+      email: "",
+      phone: "",
+      campus: undefined,
+      school: "",
+      department: "",
+      programme: "",
+      graduation_year: "",
+      employment_status: undefined,
+      employer_name: "",
+      job_title: "",
+      sector: "",
+      employment_county: "",
+      months_to_employ: "",
+      linkedin_url: "",
+      consent: undefined as unknown as true,
+    },
+    mode: "onChange",
+  });
+
+  const watchedSchool = watch("school");
+  const watchedDept = watch("department");
+  const watchedEmpStatus = watch("employment_status");
+
+  const selectedSchool = MUST_SCHOOLS.find((s) => s.id === watchedSchool);
+  const selectedDept = selectedSchool?.departments.find((d) => d.id === watchedDept);
+
+  useEffect(() => {
+    setValue("department", "");
+    setValue("programme", "");
+  }, [watchedSchool, setValue]);
+
+  useEffect(() => {
+    setValue("programme", "");
+  }, [watchedDept, setValue]);
+
+  const isEmployed =
+    watchedEmpStatus &&
+    !["Unemployed — Seeking", "Unemployed — Not Seeking", "Further Studies"].includes(watchedEmpStatus);
+
+  const stepFields: (keyof FormData)[][] = [
+    ["full_name", "email", "phone"],
+    ["campus", "school", "department", "programme", "graduation_year"],
+    ["employment_status", "consent"],
+  ];
+
+  async function nextStep() {
+    const valid = await trigger(stepFields[step]);
+    if (valid) setStep((s) => s + 1);
+  }
+  function prevStep() {
+    setStep((s) => s - 1);
+  }
+
+  async function onSubmit(data: FormData) {
+    setSubmitError(null);
+    startTransition(async () => {
+      const result: SubmitResult = await submitGraduate({
+        full_name:         data.full_name,
+        student_number:    data.student_number || undefined,
+        email:             data.email || undefined,
+        phone:             data.phone || undefined,
+        campus:            data.campus,
+        school:            data.school,
+        department:        data.department,
+        programme:         data.programme,
+        graduation_year:   data.graduation_year,
+        employment_status: data.employment_status,
+        employer_name:     data.employer_name || undefined,
+        job_title:         data.job_title || undefined,
+        sector:            data.sector || undefined,
+        employment_county: data.employment_county || undefined,
+        months_to_employ:  data.months_to_employ || undefined,
+        linkedin_url:      data.linkedin_url || undefined,
+      });
+      if (result.success) {
+        setSubmittedId(result.id);
+        setSubmitted(true);
+      } else {
+        setSubmitError(result.error);
+      }
+    });
+  }
+
+  // Validate ALL steps before native submit; jump to first failing step
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitError(null);
+    for (let i = 0; i < stepFields.length; i++) {
+      const valid = await trigger(stepFields[i]);
+      if (!valid) {
+        setStep(i);
+        return;
+      }
+    }
+    // All steps valid — also run the full schema (catches .refine cross-field rules)
+    handleSubmit(
+      onSubmit,
+      (fieldErrors) => {
+        // Cross-field validation failed — find which step has the error
+        const errorKeys = Object.keys(fieldErrors) as (keyof FormData)[];
+        for (let i = 0; i < stepFields.length; i++) {
+          if (stepFields[i].some((f) => errorKeys.includes(f))) {
+            setStep(i);
+            return;
+          }
+        }
+      },
+    )();
+  }
+
+  if (submitted) {
+    return (
+      <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40 text-center py-16">
+        <CardContent className="flex flex-col items-center gap-4">
+          <div className="text-6xl">🎉</div>
+          <h2 className="text-2xl font-black text-green-800 dark:text-green-300">
+            Thank you for submitting!
+          </h2>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Your information has been recorded. The MUST Career Services team
+            will use your data to improve employability support for future
+            graduates.
+          </p>
+          <Badge className="mt-2 bg-green-700 text-white px-4 py-1 text-sm">
+            Submission ID: #{submittedId}
+          </Badge>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => {
+              setSubmitted(false);
+              setStep(0);
+            }}
+          >
+            Submit Another Response
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <form onSubmit={handleFormSubmit} noValidate>
+      {/* Progress bar */}
+      <div className="mb-8 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-foreground">
+            Step {step + 1} of {STEPS.length} —{" "}
+            <span className="text-amber-600 dark:text-amber-400">{STEPS[step]}</span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {Math.round(((step + 1) / STEPS.length) * 100)}% complete
+          </p>
+        </div>
+        <Progress
+          value={((step + 1) / STEPS.length) * 100}
+          className="h-2 bg-muted [&>div]:bg-gradient-to-r [&>div]:from-green-600 [&>div]:to-amber-500"
+        />
+        <div className="flex gap-2">
+          {STEPS.map((s, i) => (
+            <div
+              key={s}
+              className={cn(
+                "h-1 flex-1 rounded-full transition-all",
+                i <= step ? "bg-amber-500" : "bg-muted",
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ── STEP 1: Personal Information ── */}
+      {step === 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">
+                1
+              </span>
+              Personal Information
+            </CardTitle>
+            <CardDescription>
+              Provide your name and at least one contact method (email or phone).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <Field label="Full Name" required error={errors.full_name?.message}>
+              <Input
+                placeholder="e.g. Jane Wanjiru Muthoni"
+                {...register("full_name")}
+                className={errors.full_name ? "border-destructive" : ""}
+              />
+            </Field>
+
+            <Field
+              label="Student Number"
+              error={errors.student_number?.message}
+              hint="Optional — as on your transcript (e.g. MUST/PG/123/2020)"
+            >
+              <Input
+                placeholder="MUST/PG/123/2020"
+                {...register("student_number")}
+              />
+            </Field>
+
+            <Field
+              label="Email Address"
+              error={errors.email?.message}
+              hint="Optional if phone is provided"
+            >
+              <Input
+                type="email"
+                placeholder="jane@example.com"
+                {...register("email")}
+                className={errors.email ? "border-destructive" : ""}
+              />
+            </Field>
+
+            <Field
+              label="Phone Number"
+              error={errors.phone?.message}
+              hint="Optional if email is provided (e.g. +254712345678)"
+            >
+              <Input
+                type="tel"
+                placeholder="+254712345678"
+                {...register("phone")}
+                className={errors.phone ? "border-destructive" : ""}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── STEP 2: Academic Details ── */}
+      {step === 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">
+                2
+              </span>
+              Academic Details
+            </CardTitle>
+            <CardDescription>
+              Your academic information at Meru University of Science and Technology.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <Field label="Campus" required error={errors.campus?.message}>
+              <Controller
+                name="campus"
+                control={control}
+                render={({ field }) => (
+                  <RadioGroup
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    className="flex flex-wrap gap-4 pt-1"
+                  >
+                    {(["Main Campus (Nchiru)", "Meru Town Campus"] as const).map((c) => (
+                      <div key={c} className="flex items-center gap-2">
+                        <RadioGroupItem value={c} id={`campus-${c}`} />
+                        <Label htmlFor={`campus-${c}`} className="font-normal cursor-pointer text-sm">
+                          {c}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+              />
+            </Field>
+
+            <Field label="School / Faculty" required error={errors.school?.message}>
+              <Controller
+                name="school"
+                control={control}
+                render={({ field }) => (
+                  <NativeSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    placeholder="— Select your school —"
+                    hasError={!!errors.school}
+                  >
+                    {MUST_SCHOOLS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                )}
+              />
+            </Field>
+
+            <Field label="Department" required error={errors.department?.message}>
+              <Controller
+                name="department"
+                control={control}
+                render={({ field }) => (
+                  <NativeSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    placeholder={selectedSchool ? "— Select department —" : "— Select school first —"}
+                    hasError={!!errors.department}
+                  >
+                    {selectedSchool?.departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                )}
+              />
+            </Field>
+
+            <Field label="Degree Programme" required error={errors.programme?.message}>
+              <Controller
+                name="programme"
+                control={control}
+                render={({ field }) => (
+                  <NativeSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    placeholder={selectedDept ? "— Select programme —" : "— Select department first —"}
+                    hasError={!!errors.programme}
+                  >
+                    {selectedDept?.programmes.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                )}
+              />
+            </Field>
+
+            <Field label="Year of Graduation" required error={errors.graduation_year?.message}>
+              <Controller
+                name="graduation_year"
+                control={control}
+                render={({ field }) => (
+                  <NativeSelect
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    placeholder="— Select year —"
+                    hasError={!!errors.graduation_year}
+                  >
+                    {GRADUATION_YEARS.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                )}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── STEP 3: Employment ── */}
+      {step === 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40 text-sm font-black text-amber-700 dark:text-amber-400">
+                3
+              </span>
+              Employment Information
+            </CardTitle>
+            <CardDescription>
+              Tell us about your current employment situation after graduation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Field label="Current Employment Status" required error={errors.employment_status?.message}>
+                  <Controller
+                  name="employment_status"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {(
+                        [
+                          "Employed (Full-time)",
+                          "Employed (Part-time)",
+                          "Self-employed / Entrepreneur",
+                          "Internship / Attachment",
+                          "Further Studies",
+                          "Unemployed — Seeking",
+                          "Unemployed — Not Seeking",
+                        ] as const
+                      ).map((s) => (
+                        <label
+                          key={s}
+                          htmlFor={`emp-${s}`}
+                          className={cn(
+                            "flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-all",
+                            field.value === s
+                              ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 font-medium text-amber-700 dark:text-amber-400"
+                              : "border-border hover:border-amber-300 hover:bg-muted/40",
+                          )}
+                        >
+                          <RadioGroup value={field.value ?? ""} onValueChange={field.onChange}>
+                            <RadioGroupItem value={s} id={`emp-${s}`} />
+                          </RadioGroup>
+                          {s}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                />
+              </Field>
+            </div>
+
+            {isEmployed && (
+              <>
+                <Field label="Employer / Organisation Name" error={errors.employer_name?.message}>
+                  <Input placeholder="e.g. Safaricom PLC" {...register("employer_name")} />
+                </Field>
+
+                <Field label="Job Title / Position" error={errors.job_title?.message}>
+                  <Input placeholder="e.g. Software Engineer" {...register("job_title")} />
+                </Field>
+
+                <Field label="Industry / Sector" error={errors.sector?.message}>
+                  <Controller
+                    name="sector"
+                    control={control}
+                    render={({ field }) => (
+                      <NativeSelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="— Select sector —"
+                      >
+                        {EMPLOYMENT_SECTORS.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    )}
+                  />
+                </Field>
+
+                <Field label="County / Country of Work" error={errors.employment_county?.message}>
+                  <Controller
+                    name="employment_county"
+                    control={control}
+                    render={({ field }) => (
+                      <NativeSelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="— Select location —"
+                      >
+                        <option value="Outside Kenya">Outside Kenya</option>
+                        {KENYAN_COUNTIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    )}
+                  />
+                </Field>
+
+                <Field
+                  label="Months to First Employment"
+                  error={errors.months_to_employ?.message}
+                  hint="How long after graduation did you get your first job?"
+                >
+                  <Controller
+                    name="months_to_employ"
+                    control={control}
+                    render={({ field }) => (
+                      <NativeSelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="— Select —"
+                      >
+                        {[
+                          "Already employed (internship converted)",
+                          "Less than 1 month",
+                          "1 – 3 months",
+                          "4 – 6 months",
+                          "7 – 12 months",
+                          "More than 12 months",
+                          "Still seeking",
+                        ].map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </NativeSelect>
+                    )}
+                  />
+                </Field>
+
+                <Field
+                  label="LinkedIn Profile URL"
+                  error={errors.linkedin_url?.message}
+                  hint="Optional — helps employers connect with you"
+                >
+                  <Input
+                    type="url"
+                    placeholder="https://linkedin.com/in/yourname"
+                    {...register("linkedin_url")}
+                  />
+                </Field>
+              </>
+            )}
+
+            {/* Consent */}
+            <div
+              className={cn(
+                "sm:col-span-2 rounded-xl border p-4",
+                errors.consent ? "border-destructive bg-destructive/5" : "border-border bg-muted/30",
+              )}
+            >
+              <Controller
+                name="consent"
+                control={control}
+                render={({ field }) => (
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <Checkbox
+                      checked={!!field.value}
+                      onCheckedChange={(v) => field.onChange(v ? true : undefined)}
+                      className="mt-0.5"
+                    />
+                    <div className="text-sm leading-relaxed text-foreground">
+                      <span className="font-semibold">I consent</span> to Meru University of
+                      Science and Technology (MUST) collecting and using my personal and
+                      employment data for graduate employability research, career services
+                      improvement, and institutional accreditation reporting.
+                    </div>
+                  </label>
+                )}
+              />
+              {errors.consent && (
+                <p className="mt-2 text-xs font-medium text-destructive">{errors.consent.message}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Submit error */}
+      {submitError && (
+        <div className="mt-4 rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          <strong>Submission failed:</strong> {submitError}
+        </div>
+      )}
+
+      {/* Navigation buttons */}
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={prevStep}
+          disabled={step === 0}
+          className="gap-2"
+        >
+          ← Back
+        </Button>
+
+        <div className="flex items-center gap-2">
+          {step < STEPS.length - 1 ? (
+            <Button
+              type="button"
+              onClick={nextStep}
+              className="gap-2 bg-gradient-to-r from-green-700 to-green-600 hover:from-green-600 hover:to-green-500 text-white"
+            >
+              Next Step →
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold px-8"
+            >
+              {isPending ? "Submitting…" : "🎓 Submit My Details"}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Step dots */}
+      <div className="mt-6 flex justify-center gap-2">
+        {STEPS.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => i < step && setStep(i)}
+            className={cn(
+              "h-2 rounded-full transition-all",
+              i === step
+                ? "w-6 bg-amber-500"
+                : i < step
+                  ? "w-2 bg-green-500 cursor-pointer"
+                  : "w-2 bg-muted",
+            )}
+            aria-label={`Go to step ${i + 1}`}
+          />
+        ))}
+      </div>
+    </form>
+  );
+}
