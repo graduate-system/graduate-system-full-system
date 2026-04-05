@@ -24,6 +24,26 @@ public static class GraduatesEndpoints
                 return Results.Ok(new { inserted = result.Inserted, failed = result.Failed });
             });
 
+        group.MapPost("/bulk-excel",
+            async (HttpRequest request, GraduatesService service, CancellationToken ct) =>
+            {
+                if (!request.HasFormContentType || request.Form.Files.Count == 0)
+                    return Results.BadRequest(new { success = false, error = "Upload an Excel file (.xlsx or .xls)." });
+
+                var file = request.Form.Files[0];
+                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+                if (ext is not (".xlsx" or ".xls"))
+                    return Results.BadRequest(new { success = false, error = "Only .xlsx and .xls files are accepted." });
+
+                using var stream = file.OpenReadStream();
+                var (payloads, parseError) = ExcelGraduateParser.Parse(stream);
+                if (payloads is null)
+                    return Results.BadRequest(new { success = false, error = parseError });
+
+                var result = await service.InsertManyAsync(payloads, ct);
+                return Results.Ok(new { inserted = result.Inserted, failed = result.Failed });
+            });
+
         return group;
     }
 }

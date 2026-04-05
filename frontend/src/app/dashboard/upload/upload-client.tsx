@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useCallback, useRef, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,7 @@ const EMPLOYMENT_STATUSES = [
 const CAMPUSES = ["Main Campus (Nchiru)", "Meru Town Campus"] as const;
 
 /* ── Tab type ── */
-type Mode = "single" | "csv";
+type Mode = "single" | "spreadsheet";
 
 /* ── Main component ── */
 export function UploadClient({ mustSchools }: { mustSchools: School[] }) {
@@ -52,7 +53,7 @@ export function UploadClient({ mustSchools }: { mustSchools: School[] }) {
       <div className="grid grid-cols-2 gap-3">
         {([
           { id: "single" as const, icon: "👤", label: "Single Entry", desc: "Add one graduate manually" },
-          { id: "csv" as const, icon: "📄", label: "CSV Upload", desc: "Bulk import from spreadsheet" },
+          { id: "spreadsheet" as const, icon: "📄", label: "Bulk Upload", desc: "Import CSV or Excel (.xlsx)" },
         ]).map((t) => (
           <button
             key={t.id}
@@ -71,7 +72,7 @@ export function UploadClient({ mustSchools }: { mustSchools: School[] }) {
         ))}
       </div>
 
-      {mode === "single" ? <SingleEntryForm schools={mustSchools} /> : <CsvUpload schools={mustSchools} />}
+      {mode === "single" ? <SingleEntryForm schools={mustSchools} /> : <SpreadsheetUpload schools={mustSchools} />}
     </div>
   );
 }
@@ -121,32 +122,57 @@ function SingleEntryForm({ schools }: { schools: School[] }) {
     const fd = new FormData(e.currentTarget);
     const get = (k: string) => (fd.get(k) as string)?.trim() || "";
 
+    const full_name         = get("full_name");
+    const student_number    = get("student_number");
+    const email             = get("email");
+    const phone             = get("phone");
+    const campus            = get("campus");
+    const school_val        = get("school");
+    const department_val    = get("department");
+    const programme_val     = get("programme");
+    const graduation_year   = get("graduation_year");
+    const employment_status = get("employment_status");
+    const employer_name     = get("employer_name");
+    const sector_val        = get("sector");
+    const linkedin_url      = get("linkedin_url");
+
+    if (!full_name)         { setResult({ ok: false, msg: "Full name is required." }); return; }
+    if (full_name.length < 3) { setResult({ ok: false, msg: "Full name must be at least 3 characters." }); return; }
+    if (!NAME_RE.test(full_name)) { setResult({ ok: false, msg: "Name must contain letters only — no numbers or special characters." }); return; }
+    if (!campus)            { setResult({ ok: false, msg: "Campus is required." }); return; }
+    if (!school_val)        { setResult({ ok: false, msg: "School is required." }); return; }
+    if (!department_val)    { setResult({ ok: false, msg: "Department is required." }); return; }
+    if (!programme_val)     { setResult({ ok: false, msg: "Programme is required." }); return; }
+    if (!graduation_year)   { setResult({ ok: false, msg: "Graduation year is required." }); return; }
+    if (!employment_status) { setResult({ ok: false, msg: "Employment status is required." }); return; }
+    if (!email && !phone)   { setResult({ ok: false, msg: "Provide at least an email or phone number." }); return; }
+    if (email && !EMAIL_RE.test(email))   { setResult({ ok: false, msg: "Enter a valid email address." }); return; }
+    if (phone && !PHONE_RE.test(phone))   { setResult({ ok: false, msg: "Enter a valid phone number (e.g. +254712345678)." }); return; }
+    if (student_number && !STUDENT_NO_RE.test(student_number)) { setResult({ ok: false, msg: "Student number format: MUST/PG/123/2020." }); return; }
+    if (linkedin_url && !/^https?:\/\/.+/.test(linkedin_url)) { setResult({ ok: false, msg: "Enter a valid LinkedIn URL (must start with https://)." }); return; }
+    if (EMPLOYED_STATUSES.has(employment_status)) {
+      if (!employer_name) { setResult({ ok: false, msg: "Employer name is required when employed." }); return; }
+      if (!sector_val)    { setResult({ ok: false, msg: "Sector is required when employed." }); return; }
+    }
+
     const payload: GraduatePayload = {
-      full_name: get("full_name"),
-      student_number: get("student_number") || undefined,
-      email: get("email") || undefined,
-      phone: get("phone") || undefined,
-      campus: get("campus"),
-      school: get("school"),
-      department: get("department"),
-      programme: get("programme"),
-      graduation_year: get("graduation_year"),
-      employment_status: get("employment_status"),
-      employer_name: get("employer_name") || undefined,
+      full_name,
+      student_number: student_number || undefined,
+      email: email || undefined,
+      phone: phone || undefined,
+      campus,
+      school: school_val,
+      department: department_val,
+      programme: programme_val,
+      graduation_year,
+      employment_status,
+      employer_name: employer_name || undefined,
       job_title: get("job_title") || undefined,
-      sector: get("sector") || undefined,
+      sector: sector_val || undefined,
       employment_county: get("employment_county") || undefined,
       months_to_employ: get("months_to_employ") || undefined,
-      linkedin_url: get("linkedin_url") || undefined,
+      linkedin_url: linkedin_url || undefined,
     };
-
-    if (!payload.full_name) { setResult({ ok: false, msg: "Full name is required." }); return; }
-    if (!payload.campus) { setResult({ ok: false, msg: "Campus is required." }); return; }
-    if (!payload.school) { setResult({ ok: false, msg: "School is required." }); return; }
-    if (!payload.department) { setResult({ ok: false, msg: "Department is required." }); return; }
-    if (!payload.programme) { setResult({ ok: false, msg: "Programme is required." }); return; }
-    if (!payload.graduation_year) { setResult({ ok: false, msg: "Graduation year is required." }); return; }
-    if (!payload.employment_status) { setResult({ ok: false, msg: "Employment status is required." }); return; }
 
     startTransition(async () => {
       const res = await submitGraduate(payload);
@@ -261,10 +287,10 @@ function SingleEntryForm({ schools }: { schools: School[] }) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   CSV BULK UPLOAD
+   SPREADSHEET BULK UPLOAD (CSV + Excel)
    ═══════════════════════════════════════════════════════ */
 
-const CSV_COLUMNS = [
+const SPREADSHEET_COLUMNS = [
   "full_name", "student_number", "email", "phone", "campus",
   "school", "department", "programme", "graduation_year",
   "employment_status", "employer_name", "job_title", "sector",
@@ -272,8 +298,45 @@ const CSV_COLUMNS = [
 ] as const;
 
 const REQUIRED_COLS = ["full_name", "campus", "school", "department", "programme", "graduation_year", "employment_status"];
+const MAX_ROWS = 500;
+const NAME_RE = /^[A-Za-z\s''-]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^\+?\d{10,15}$/;
+const STUDENT_NO_RE = /^(MUST\/[A-Z]{1,4}\/\d+\/\d{4})?$/;
+const EMPLOYED_STATUSES = new Set([
+  "Employed (Full-time)", "Employed (Part-time)",
+  "Self-employed / Entrepreneur", "Internship / Attachment",
+]);
 
-function CsvUpload({ schools }: { schools: School[] }) {
+const ACCEPTED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
+const ACCEPTED_MIME = [
+  "text/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+];
+
+function isAcceptedFile(file: File): boolean {
+  return (
+    ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext)) ||
+    ACCEPTED_MIME.includes(file.type)
+  );
+}
+
+function parseExcelToRows(buffer: ArrayBuffer): Record<string, string>[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+  return raw.map((r) => {
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(r)) {
+      const key = k.trim().toLowerCase().replace(/\s+/g, "_");
+      row[key] = String(v ?? "").trim();
+    }
+    return row;
+  });
+}
+
+function SpreadsheetUpload({ schools }: { schools: School[] }) {
   const [isPending, startTransition] = useTransition();
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
@@ -285,9 +348,28 @@ function CsvUpload({ schools }: { schools: School[] }) {
   const validationErrors = useMemo(() => {
     const errs: { row: number; col: string; msg: string }[] = [];
     rows.forEach((r, i) => {
+      const rowNum = i + 1;
       REQUIRED_COLS.forEach((col) => {
-        if (!r[col]?.trim()) errs.push({ row: i + 1, col, msg: "Required" });
+        if (!r[col]?.trim()) errs.push({ row: rowNum, col, msg: "Required" });
       });
+      if (r.full_name?.trim() && r.full_name.trim().length < 3)
+        errs.push({ row: rowNum, col: "full_name", msg: "Name too short (min 3 characters)" });
+      if (r.full_name?.trim() && !NAME_RE.test(r.full_name.trim()))
+        errs.push({ row: rowNum, col: "full_name", msg: "Name must contain letters only" });
+      if (!r.email?.trim() && !r.phone?.trim())
+        errs.push({ row: rowNum, col: "email/phone", msg: "At least one of email or phone is required" });
+      if (r.email?.trim() && !EMAIL_RE.test(r.email.trim()))
+        errs.push({ row: rowNum, col: "email", msg: "Invalid email format" });
+      if (r.phone?.trim() && !PHONE_RE.test(r.phone.trim()))
+        errs.push({ row: rowNum, col: "phone", msg: "Invalid phone (e.g. +254712345678)" });
+      if (r.student_number?.trim() && !STUDENT_NO_RE.test(r.student_number.trim()))
+        errs.push({ row: rowNum, col: "student_number", msg: "Format: MUST/PG/123/2020" });
+      if (r.linkedin_url?.trim() && !/^https?:\/\/.+/.test(r.linkedin_url.trim()))
+        errs.push({ row: rowNum, col: "linkedin_url", msg: "Must start with https://" });
+      if (EMPLOYED_STATUSES.has(r.employment_status?.trim())) {
+        if (!r.employer_name?.trim()) errs.push({ row: rowNum, col: "employer_name", msg: "Required when employed" });
+        if (!r.sector?.trim())        errs.push({ row: rowNum, col: "sector",        msg: "Required when employed" });
+      }
     });
     return errs;
   }, [rows]);
@@ -297,39 +379,57 @@ function CsvUpload({ schools }: { schools: School[] }) {
     setParseError("");
     setRows([]);
 
-    if (!file.name.endsWith(".csv")) {
-      setParseError("Please upload a .csv file");
+    if (!isAcceptedFile(file)) {
+      setParseError("Please upload a .csv, .xlsx, or .xls file.");
       return;
     }
 
     setFileName(file.name);
+    const isExcel = file.name.toLowerCase().endsWith(".xlsx") || file.name.toLowerCase().endsWith(".xls");
     const reader = new FileReader();
+
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split(/\r?\n/).filter((l) => l.trim());
-      if (lines.length < 2) { setParseError("CSV must have a header row and at least one data row."); return; }
+      try {
+        let parsed: Record<string, string>[];
 
-      const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+        if (isExcel) {
+          parsed = parseExcelToRows(e.target!.result as ArrayBuffer);
+          parsed = parsed.filter((r) => r.full_name?.trim());
+          if (!parsed.length) { setParseError("No valid data rows found."); return; }
+          const missing = REQUIRED_COLS.filter((c) => !(c in parsed[0]));
+          if (missing.length) { setParseError(`Missing required columns: ${missing.join(", ")}`); return; }
+        } else {
+          const text = e.target?.result as string;
+          const lines = text.split(/\r?\n/).filter((l) => l.trim());
+          if (lines.length < 2) { setParseError("File must have a header row and at least one data row."); return; }
+          const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+          const missing = REQUIRED_COLS.filter((c) => !headers.includes(c));
+          if (missing.length) { setParseError(`Missing required columns: ${missing.join(", ")}`); return; }
+          parsed = [];
+          for (let i = 1; i < lines.length; i++) {
+            const vals = parseCsvLine(lines[i]);
+            const row: Record<string, string> = {};
+            headers.forEach((h, j) => { row[h] = vals[j]?.trim() ?? ""; });
+            if (row.full_name?.trim()) parsed.push(row);
+          }
+          if (!parsed.length) { setParseError("No valid data rows found."); return; }
+        }
 
-      // Check required columns exist
-      const missing = REQUIRED_COLS.filter((c) => !headers.includes(c));
-      if (missing.length) {
-        setParseError(`Missing required columns: ${missing.join(", ")}`);
-        return;
+        if (parsed.length > MAX_ROWS) {
+          setParseError(`File exceeds the ${MAX_ROWS}-row limit. Split your file and upload in batches.`);
+          return;
+        }
+        setRows(parsed);
+      } catch {
+        setParseError("Failed to parse file. Ensure it is a valid CSV or Excel file.");
       }
-
-      const parsed: Record<string, string>[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const vals = parseCsvLine(lines[i]);
-        const row: Record<string, string> = {};
-        headers.forEach((h, j) => { row[h] = vals[j]?.trim() ?? ""; });
-        if (row.full_name?.trim()) parsed.push(row);
-      }
-
-      if (!parsed.length) { setParseError("No valid data rows found."); return; }
-      setRows(parsed);
     };
-    reader.readAsText(file);
+
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   }, []);
 
   function handleDrop(e: React.DragEvent) {
@@ -373,20 +473,16 @@ function CsvUpload({ schools }: { schools: School[] }) {
   }
 
   function downloadTemplate() {
-    const header = CSV_COLUMNS.join(",");
-    const example = [
+    const exampleRow = [
       "Jane Wanjiru", "MUST/PG/123/2020", "jane@example.com", "+254712345678",
       "Main Campus (Nchiru)", "sci", "cs", "Bachelor of Science (Computer Science)",
       "2024", "Employed (Full-time)", "Safaricom PLC", "Software Engineer",
       "Information & Communication Technology (ICT)", "Nairobi", "1 – 3 months", "",
-    ].join(",");
-    const blob = new Blob([header + "\n" + example + "\n"], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "MUST_Graduate_Upload_Template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([SPREADSHEET_COLUMNS as unknown as string[], exampleRow]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Graduates");
+    XLSX.writeFile(wb, "MUST_Graduate_Upload_Template.xlsx");
   }
 
   return (
@@ -394,14 +490,14 @@ function CsvUpload({ schools }: { schools: School[] }) {
       {/* Instructions */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">CSV Bulk Upload</CardTitle>
-          <CardDescription>Upload a CSV file with graduate records. Download the template to see the expected format.</CardDescription>
+          <CardTitle className="text-lg">Bulk Upload</CardTitle>
+          <CardDescription>Upload a CSV or Excel file (.xlsx / .xls) with graduate records. Download the template to see the expected format.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Template + column reference */}
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="outline" size="sm" onClick={downloadTemplate} className="text-xs">
-              📥 Download Template
+              📥 Download Template (.xlsx)
             </Button>
             <p className="text-[10px] text-muted-foreground">
               Required: <span className="font-semibold">full_name, campus, school, department, programme, graduation_year, employment_status</span>
@@ -436,10 +532,10 @@ function CsvUpload({ schools }: { schools: School[] }) {
           >
             <span className="text-4xl">📁</span>
             <p className="text-sm font-medium text-foreground">
-              {fileName || "Drop CSV file here or click to browse"}
+              {fileName || "Drop file here or click to browse"}
             </p>
-            <p className="text-[10px] text-muted-foreground">Accepts .csv files</p>
-            <input ref={inputRef} type="file" accept=".csv" onChange={handleInputChange} className="hidden" />
+            <p className="text-[10px] text-muted-foreground">Accepts .csv, .xlsx, .xls</p>
+            <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleInputChange} className="hidden" />
           </div>
 
           {parseError && (

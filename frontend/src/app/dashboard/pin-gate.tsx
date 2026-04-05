@@ -80,7 +80,7 @@ export function PinGate() {
             </div>
             <Button
               type="submit"
-              disabled={isPending || pin.length === 0}
+              disabled={isPending || pin.length < 4}
               className="w-full bg-gradient-to-r from-green-700 to-green-600 hover:from-green-600 hover:to-green-500 text-white"
             >
               {isPending ? "Verifying…" : "Access Dashboard →"}
@@ -89,6 +89,29 @@ export function PinGate() {
           <p className="mt-4 text-center text-xs text-muted-foreground">
             Contact the ICT department if you don&apos;t have the PIN.
           </p>
+          <div className="mt-4 flex flex-col items-center gap-2 border-t pt-4">
+            <p className="text-xs text-muted-foreground">Not a committee member?</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => router.back()}
+              >
+                ← Go Back
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => router.push("/register")}
+              >
+                🎓 Graduate Registration
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

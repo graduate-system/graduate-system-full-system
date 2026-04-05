@@ -23,8 +23,15 @@ import { cn } from "@/lib/utils";
 /* ── Zod schema ─────────────────────────────────────── */
 const schema = z
   .object({
-    full_name: z.string().min(3, "Enter your full name"),
-    student_number: z.string().optional(),
+    full_name: z
+      .string()
+      .min(3, "Enter your full name")
+      .regex(/^[A-Za-z\s''-]+$/, "Name must contain letters only — no numbers or special characters"),
+    student_number: z
+      .string()
+      .regex(/^(MUST\/[A-Z]{1,4}\/\d+\/\d{4})?$/, "Format: MUST/PG/123/2020")
+      .optional()
+      .or(z.literal("")),
     email: z.string().email("Enter a valid email").optional().or(z.literal("")),
     phone: z
       .string()
@@ -59,7 +66,23 @@ const schema = z
   .refine((d) => d.email || d.phone, {
     message: "Provide at least an email or phone number",
     path: ["email"],
-  });
+  })
+  .refine(
+    (d) => {
+      const employed = d.employment_status &&
+        !["Unemployed — Seeking", "Unemployed — Not Seeking", "Further Studies"].includes(d.employment_status);
+      return !employed || !!d.employer_name?.trim();
+    },
+    { message: "Employer name is required when employed", path: ["employer_name"] },
+  )
+  .refine(
+    (d) => {
+      const employed = d.employment_status &&
+        !["Unemployed — Seeking", "Unemployed — Not Seeking", "Further Studies"].includes(d.employment_status);
+      return !employed || !!d.sector?.trim();
+    },
+    { message: "Sector is required when employed", path: ["sector"] },
+  );
 
 type FormData = z.infer<typeof schema>;
 
@@ -204,7 +227,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
   const stepFields: (keyof FormData)[][] = [
     ["full_name", "email", "phone"],
     ["campus", "school", "department", "programme", "graduation_year"],
-    ["employment_status", "consent"],
+    ["employment_status", "employer_name", "sector", "consent"],
   ];
 
   async function nextStep() {
@@ -566,7 +589,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
 
             {isEmployed && (
               <>
-                <Field label="Employer / Organisation Name" error={errors.employer_name?.message}>
+                 <Field label="Employer / Organisation Name" required={!!isEmployed} error={errors.employer_name?.message}>
                   <Input placeholder="e.g. Safaricom PLC" {...register("employer_name")} />
                 </Field>
 
@@ -574,7 +597,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
                   <Input placeholder="e.g. Software Engineer" {...register("job_title")} />
                 </Field>
 
-                <Field label="Industry / Sector" error={errors.sector?.message}>
+                <Field label="Industry / Sector" required={!!isEmployed} error={errors.sector?.message}>
                   <Controller
                     name="sector"
                     control={control}

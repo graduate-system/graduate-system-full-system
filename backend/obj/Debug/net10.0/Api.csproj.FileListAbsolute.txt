@@ -77,3 +77,11 @@
 /home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/Api.genruntimeconfig.cache
 /home/munene/dev/school/graduate system/backend/obj/Debug/net10.0/ref/Api.dll
 /home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/appsettings.Development.json
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/ClosedXML.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/ClosedXML.Parser.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/DocumentFormat.OpenXml.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/DocumentFormat.OpenXml.Framework.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/ExcelNumberFormat.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/RBush.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/SixLabors.Fonts.dll
+/home/munene/dev/school/graduate system/backend/bin/Debug/net10.0/System.IO.Packaging.dll
