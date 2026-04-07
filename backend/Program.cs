@@ -67,9 +67,16 @@ builder.Services.AddSingleton<CommitteeAuthFilter>();
 builder.Services.AddOptions<Api.Supabase.SupabaseOptions>()
     .Bind(builder.Configuration.GetSection("Supabase"));
 
+builder.Services.AddOptions<Api.Reports.AzureAiOptions>()
+    .Bind(builder.Configuration.GetSection("AzureAI"));
+
 builder.Services.AddHttpClient<Api.Supabase.SupabaseRestClient>();
 builder.Services.AddScoped<Api.Graduates.IGraduatesRepository, Api.Graduates.SupabaseGraduatesRepository>();
 builder.Services.AddScoped<Api.Graduates.GraduatesService>();
+builder.Services.AddScoped<Api.Reports.ReportService>();
+builder.Services.AddSingleton<Api.Reports.AzureAiReportWriter>();
+builder.Services.AddSingleton<Api.Reports.PdfReportGenerator>();
+builder.Services.AddSingleton<Api.Reports.ExcelReportGenerator>();
 
 var app = builder.Build();
 

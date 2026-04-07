@@ -13,6 +13,7 @@ public static class ApiEndpoints
         api.MapGraduatesEndpoints();
         api.MapDashboardEndpoints();
         api.MapAdminEndpoints();
+        api.MapReportsEndpoints();
 
         return app;
     }

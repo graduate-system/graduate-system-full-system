@@ -1,19 +1,39 @@
 {
   "version": 2,
-  "dgSpecHash": "5tXJgrTcvJs=",
+  "dgSpecHash": "AepUtMtM0D0=",
   "success": true,
   "projectFilePath": "/home/munene/dev/school/graduate system/backend/Api.csproj",
   "expectedPackageFiles": [
+    "/home/munene/.nuget/packages/azure.ai.openai/2.1.0/azure.ai.openai.2.1.0.nupkg.sha512",
+    "/home/munene/.nuget/packages/azure.core/1.44.1/azure.core.1.44.1.nupkg.sha512",
     "/home/munene/.nuget/packages/closedxml/0.105.0/closedxml.0.105.0.nupkg.sha512",
     "/home/munene/.nuget/packages/closedxml.parser/2.0.0/closedxml.parser.2.0.0.nupkg.sha512",
     "/home/munene/.nuget/packages/documentformat.openxml/3.1.1/documentformat.openxml.3.1.1.nupkg.sha512",
     "/home/munene/.nuget/packages/documentformat.openxml.framework/3.1.1/documentformat.openxml.framework.3.1.1.nupkg.sha512",
     "/home/munene/.nuget/packages/excelnumberformat/1.1.0/excelnumberformat.1.1.0.nupkg.sha512",
     "/home/munene/.nuget/packages/microsoft.aspnetcore.openapi/10.0.3/microsoft.aspnetcore.openapi.10.0.3.nupkg.sha512",
+    "/home/munene/.nuget/packages/microsoft.bcl.asyncinterfaces/6.0.0/microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
     "/home/munene/.nuget/packages/microsoft.openapi/2.0.0/microsoft.openapi.2.0.0.nupkg.sha512",
+    "/home/munene/.nuget/packages/openai/2.1.0/openai.2.1.0.nupkg.sha512",
+    "/home/munene/.nuget/packages/questpdf/2025.4.0/questpdf.2025.4.0.nupkg.sha512",
     "/home/munene/.nuget/packages/rbush.signed/4.0.0/rbush.signed.4.0.0.nupkg.sha512",
     "/home/munene/.nuget/packages/sixlabors.fonts/1.0.0/sixlabors.fonts.1.0.0.nupkg.sha512",
-    "/home/munene/.nuget/packages/system.io.packaging/8.0.1/system.io.packaging.8.0.1.nupkg.sha512"
+    "/home/munene/.nuget/packages/system.clientmodel/1.2.1/system.clientmodel.1.2.1.nupkg.sha512",
+    "/home/munene/.nuget/packages/system.io.packaging/8.0.1/system.io.packaging.8.0.1.nupkg.sha512",
+    "/home/munene/.nuget/packages/system.memory.data/6.0.0/system.memory.data.6.0.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1603",
+      "level": "Warning",
+      "message": "Api depends on QuestPDF (>= 2025.3.0) but QuestPDF 2025.3.0 was not found. QuestPDF 2025.4.0 was resolved instead.",
+      "projectPath": "/home/munene/dev/school/graduate system/backend/Api.csproj",
+      "warningLevel": 1,
+      "filePath": "/home/munene/dev/school/graduate system/backend/Api.csproj",
+      "libraryId": "QuestPDF",
+      "targetGraphs": [
+        "net10.0"
+      ]
+    }
+  ]
 }
