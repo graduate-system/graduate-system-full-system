@@ -47,6 +47,7 @@ export default function HomePage() {
               <li><a href="#graduates">Stories</a></li>
               <li><a href="#trends">Trends</a></li>
               <li><Link href="/register" className="navbar-cta">Submit Data</Link></li>
+              <li><Link href="/dashboard">Dashboard</Link></li>
               <li><ThemeToggle /></li>
             </ul>
           </nav>
@@ -78,7 +79,7 @@ export default function HomePage() {
 
             <div className="hero-actions">
               <Link href="/register" className="btn-primary">🎓 I&apos;m a Graduate →</Link>
-              <a href="#dashboard" className="btn-outline">Committee Dashboard</a>
+              <Link href="/dashboard" className="btn-outline">Committee Dashboard</Link>
             </div>
 
             <div className="hero-stats">
@@ -420,9 +421,9 @@ export default function HomePage() {
               ))}
             </div>
 
-            <a href="#dashboard" className="btn-primary" style={{ marginTop: "1.8rem", display: "inline-flex" }}>
+            <Link href="/dashboard" className="btn-primary" style={{ marginTop: "1.8rem", display: "inline-flex" }}>
               View Full Dashboard →
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -493,9 +494,9 @@ export default function HomePage() {
               <div className="role-cta-icon">📊</div>
               <h3>School Committee</h3>
               <p>Access analytics dashboards, reports, and graduate outcome trends by programme.</p>
-              <a href="/dashboard" className="btn-outline" style={{ marginTop: "auto" }}>
+              <Link href="/dashboard" className="btn-outline" style={{ marginTop: "auto" }}>
                 Open Dashboard →
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -526,7 +527,7 @@ export default function HomePage() {
                 <li><a href="#features">Features</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
                 <li><a href="#trends">Trend Reports</a></li>
-                <li><a href="#dashboard">Dashboard</a></li>
+                <li><Link href="/dashboard">Dashboard</Link></li>
               </ul>
             </div>
 
@@ -543,10 +544,10 @@ export default function HomePage() {
             <div className="footer-col">
               <h4>Resources</h4>
               <ul>
-                <li><a href="#">Graduate Survey</a></li>
-                <li><a href="#">Employer Portal</a></li>
-                <li><a href="#">API Docs</a></li>
-                <li><a href="#">Privacy Policy</a></li>
+                <li><Link href="/register">Graduate Survey</Link></li>
+                <li><Link href="/dashboard">Committee Portal</Link></li>
+                <li><a href="mailto:ict@must.ac.ke">Contact ICT</a></li>
+                <li><a href="https://www.must.ac.ke/privacy" target="_blank" rel="noreferrer">Privacy Policy</a></li>
               </ul>
             </div>
           </div>
