@@ -298,7 +298,7 @@ const SPREADSHEET_COLUMNS = [
   "employment_county", "months_to_employ", "linkedin_url",
 ] as const;
 
-const REQUIRED_COLS = ["full_name", "campus", "school", "department", "programme", "graduation_year", "employment_status"];
+const REQUIRED_COLS = ["full_name"];
 const MAX_ROWS = 500;
 const NAME_RE = /^[A-Za-z\s''-]+$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -345,15 +345,12 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
     const errs: { row: number; col: string; msg: string }[] = [];
     rows.forEach((r, i) => {
       const rowNum = i + 1;
-      REQUIRED_COLS.forEach((col) => {
-        if (!r[col]?.trim()) errs.push({ row: rowNum, col, msg: "Required" });
-      });
+      if (!r.full_name?.trim())
+        errs.push({ row: rowNum, col: "full_name", msg: "Required" });
       if (r.full_name?.trim() && r.full_name.trim().length < 3)
         errs.push({ row: rowNum, col: "full_name", msg: "Name too short (min 3 characters)" });
       if (r.full_name?.trim() && !NAME_RE.test(r.full_name.trim()))
         errs.push({ row: rowNum, col: "full_name", msg: "Name must contain letters only" });
-      if (!r.email?.trim() && !r.phone?.trim())
-        errs.push({ row: rowNum, col: "email/phone", msg: "At least one of email or phone is required" });
       if (r.email?.trim() && !EMAIL_RE.test(r.email.trim()))
         errs.push({ row: rowNum, col: "email", msg: "Invalid email format" });
       if (r.phone?.trim() && !PHONE_RE.test(r.phone.trim()))
@@ -362,10 +359,6 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
         errs.push({ row: rowNum, col: "student_number", msg: "Format: MUST/PG/123/2020" });
       if (r.linkedin_url?.trim() && !/^https?:\/\/.+/.test(r.linkedin_url.trim()))
         errs.push({ row: rowNum, col: "linkedin_url", msg: "Must start with https://" });
-      if (EMPLOYED_STATUSES_SET.has(r.employment_status?.trim())) {
-        if (!r.employer_name?.trim()) errs.push({ row: rowNum, col: "employer_name", msg: "Required when employed" });
-        if (!r.sector?.trim())        errs.push({ row: rowNum, col: "sector",        msg: "Required when employed" });
-      }
     });
     return errs;
   }, [rows]);
@@ -390,22 +383,24 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
 
         if (isExcel) {
           parsed = parseExcelToRows(e.target!.result as ArrayBuffer);
-          parsed = parsed.filter((r) => r.full_name?.trim());
+          parsed = parsed.filter((r) => r.full_name?.trim() || r.name?.trim());
+          parsed = parsed.map((r) => ({ ...r, full_name: r.full_name || r.name || "" }));
           if (!parsed.length) { setParseError("No valid data rows found."); return; }
-          const missing = REQUIRED_COLS.filter((c) => !(c in parsed[0]));
-          if (missing.length) { setParseError(`Missing required columns: ${missing.join(", ")}`); return; }
         } else {
           const text = e.target?.result as string;
           const lines = text.split(/\r?\n/).filter((l) => l.trim());
           if (lines.length < 2) { setParseError("File must have a header row and at least one data row."); return; }
-          const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
-          const missing = REQUIRED_COLS.filter((c) => !headers.includes(c));
-          if (missing.length) { setParseError(`Missing required columns: ${missing.join(", ")}`); return; }
+          const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/[\s-]+/g, "_"));
+          if (!headers.includes("full_name") && !headers.includes("name")) {
+            setParseError("File must have at least a 'full_name' (or 'name') column.");
+            return;
+          }
           parsed = [];
           for (let i = 1; i < lines.length; i++) {
             const vals = parseCsvLine(lines[i]);
             const row: Record<string, string> = {};
             headers.forEach((h, j) => { row[h] = vals[j]?.trim() ?? ""; });
+            if (!row.full_name && row.name) row.full_name = row.name;
             if (row.full_name?.trim()) parsed.push(row);
           }
           if (!parsed.length) { setParseError("No valid data rows found."); return; }
@@ -471,9 +466,10 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
   function downloadTemplate() {
     const exampleRow = [
       "Jane Wanjiru", "MUST/PG/123/2020", "jane@example.com", "+254712345678",
-      "Main Campus (Nchiru)", "sci", "cs", "Bachelor of Science (Computer Science)",
-      "2024", "Employed (Full-time)", "Safaricom PLC", "Software Engineer",
-      "Information & Communication Technology (ICT)", "Nairobi", "1 – 3 months", "",
+      "Main Campus (Nchiru)", "School of Computing and Informatics (SCI)", "Department of Computer Science",
+      "Bachelor of Science (Computer Science)", "2024", "Employed (Full-time)",
+      "Safaricom PLC", "Software Engineer", "Information & Communication Technology (ICT)",
+      "Nairobi", "1 – 3 months", "",
     ];
     const ws = XLSX.utils.aoa_to_sheet([SPREADSHEET_COLUMNS as unknown as string[], exampleRow]);
     const wb = XLSX.utils.book_new();
@@ -496,7 +492,7 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
               📥 Download Template (.xlsx)
             </Button>
             <p className="text-[10px] text-muted-foreground">
-              Required: <span className="font-semibold">full_name, campus, school, department, programme, graduation_year, employment_status</span>
+              Only <span className="font-semibold">full_name</span> is required — all other columns are optional. Missing values are filled with sensible defaults.
             </p>
           </div>
 
@@ -507,11 +503,12 @@ function SpreadsheetUpload({ schools }: { schools: School[] }) {
             </summary>
             <div className="mt-2 rounded-lg border p-3 space-y-2 text-[11px] text-muted-foreground bg-muted/30">
               <p><span className="font-semibold text-foreground">campus:</span> {CAMPUSES.join(" | ")}</p>
-              <p><span className="font-semibold text-foreground">school</span> (use ID): {schools.map((s) => s.id).join(", ")}</p>
-              <p><span className="font-semibold text-foreground">department</span> (use ID): see school reference above — use department IDs (e.g. cs, it, bus…)</p>
-              <p><span className="font-semibold text-foreground">programme:</span> Use exact programme name (see template)</p>
+              <p><span className="font-semibold text-foreground">school:</span> use the school name or abbreviation (e.g. SHS, SCI, SBE) — the system will match it automatically</p>
+              <p><span className="font-semibold text-foreground">department:</span> use the department name or short ID (e.g. cs, med_lab) — matched automatically</p>
+              <p><span className="font-semibold text-foreground">programme:</span> use the programme name — closest match is used if not exact</p>
               <p><span className="font-semibold text-foreground">employment_status:</span> {ALL_EMPLOYMENT_STATUSES.join(" | ")}</p>
               <p><span className="font-semibold text-foreground">sector:</span> {EMPLOYMENT_SECTORS.slice(0, 5).join(" | ")} …</p>
+              <p className="text-green-700 dark:text-green-400 font-medium">✅ Missing columns are filled with defaults — upload will not be blocked by missing fields.</p>
             </div>
           </details>
 
