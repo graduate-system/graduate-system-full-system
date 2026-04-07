@@ -8,57 +8,105 @@ public sealed class GraduatesService(SupabaseMetadataRepository metadata, IGradu
     public async Task<(GraduateRow? row, string? error)> ResolveRowAsync(GraduatePayloadDto payload, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(payload.FullName)) return (null, "Full name is required");
-        if (string.IsNullOrWhiteSpace(payload.Campus)) return (null, "Campus is required");
-        if (string.IsNullOrWhiteSpace(payload.School)) return (null, "Invalid school");
-        if (string.IsNullOrWhiteSpace(payload.Department)) return (null, "Invalid department");
-        if (string.IsNullOrWhiteSpace(payload.Programme)) return (null, "Invalid programme");
-
-        if (string.IsNullOrWhiteSpace(payload.Email) && string.IsNullOrWhiteSpace(payload.Phone))
-        {
-            return (null, "Email or phone is required");
-        }
-
-        if (!int.TryParse(payload.GraduationYear, out var graduationYear))
-        {
-            return (null, "Invalid graduation year");
-        }
 
         var schools = await metadata.GetSchoolsAsync(cancellationToken);
-        var school = schools.FirstOrDefault(s => string.Equals(s.Id, payload.School, StringComparison.Ordinal));
-        if (school is null) return (null, "Invalid school");
 
-        var department = school.Departments.FirstOrDefault(d => string.Equals(d.Id, payload.Department, StringComparison.Ordinal));
-        if (department is null) return (null, "Invalid department");
-
-        if (!department.Programmes.Contains(payload.Programme, StringComparer.Ordinal))
+        // ── Resolve school ───────────────────────────────────────────────────────────────
+        // Try: exact ID match → name contains match → abbreviation in parentheses → first school
+        MustSchool? school = null;
+        if (!string.IsNullOrWhiteSpace(payload.School))
         {
-            return (null, "Invalid programme");
+            var q = payload.School.Trim();
+            school = schools.FirstOrDefault(s => string.Equals(s.Id, q, StringComparison.OrdinalIgnoreCase))
+                  ?? schools.FirstOrDefault(s => s.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+                  ?? schools.FirstOrDefault(s => s.Id.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+        school ??= schools.FirstOrDefault();
+        if (school is null) return (null, "No schools found in the system");
+
+        // ── Resolve department ───────────────────────────────────────────────────────────
+        MustDepartment? department = null;
+        if (!string.IsNullOrWhiteSpace(payload.Department))
+        {
+            var q = payload.Department.Trim();
+            // Search across all schools if not found in resolved school
+            department = school.Departments.FirstOrDefault(d => string.Equals(d.Id, q, StringComparison.OrdinalIgnoreCase))
+                      ?? school.Departments.FirstOrDefault(d => d.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+                      ?? schools.SelectMany(s => s.Departments).FirstOrDefault(d => d.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+                      ?? schools.SelectMany(s => s.Departments).FirstOrDefault(d => string.Equals(d.Id, q, StringComparison.OrdinalIgnoreCase));
+
+            // If found in a different school, update school to match
+            if (department is not null)
+            {
+                var owningSchool = schools.FirstOrDefault(s => s.Departments.Any(d => d.Id == department.Id));
+                if (owningSchool is not null) school = owningSchool;
+            }
+        }
+        department ??= school.Departments.FirstOrDefault();
+        if (department is null) return (null, $"No departments found for school '{school.Name}'");
+
+        // ── Resolve programme ──────────────────────────────────────────────────────────────
+        string programmeName;
+        if (!string.IsNullOrWhiteSpace(payload.Programme))
+        {
+            var q = payload.Programme.Trim();
+            programmeName = department.Programmes.FirstOrDefault(p => string.Equals(p, q, StringComparison.OrdinalIgnoreCase))
+                         ?? department.Programmes.FirstOrDefault(p => p.Contains(q, StringComparison.OrdinalIgnoreCase))
+                         ?? department.Programmes.FirstOrDefault()
+                         ?? q; // store as-is if truly not found
+        }
+        else
+        {
+            programmeName = department.Programmes.FirstOrDefault() ?? "Unknown Programme";
         }
 
-        var programmeId = await repo.ResolveProgrammeIdAsync(payload.Department, payload.Programme, cancellationToken);
-        if (programmeId is null) return (null, "Could not resolve programme");
+        var programmeId = await repo.ResolveProgrammeIdAsync(department.Id, programmeName, cancellationToken);
+        if (programmeId is null)
+        {
+            // Programme name not in DB — use first available programme in the department
+            var fallbackProg = department.Programmes.FirstOrDefault();
+            if (fallbackProg is not null)
+            {
+                programmeId = await repo.ResolveProgrammeIdAsync(department.Id, fallbackProg, cancellationToken);
+                programmeName = fallbackProg;
+            }
+            if (programmeId is null) return (null, $"Could not resolve any programme for department '{department.Name}'");
+        }
+
+        // ── Defaults for missing required DB fields ────────────────────────────────────────────
+        var campus = !string.IsNullOrWhiteSpace(payload.Campus) ? payload.Campus.Trim() : "Main Campus (Nchiru)";
+        var employmentStatus = !string.IsNullOrWhiteSpace(payload.EmploymentStatus) ? payload.EmploymentStatus.Trim() : "Unknown";
+
+        if (!int.TryParse(payload.GraduationYear, out var graduationYear))
+            graduationYear = DateTime.Now.Year;
+
+        // DB requires email OR phone — generate a placeholder if both missing
+        var email = EmptyToNull(payload.Email);
+        var phone = EmptyToNull(payload.Phone);
+        if (email is null && phone is null)
+            email = $"unknown+{Guid.NewGuid():N}@must.ac.ke";
 
         return (new GraduateRow
         {
-            FullName = payload.FullName,
-            StudentNumber = EmptyToNull(payload.StudentNumber),
-            Email = EmptyToNull(payload.Email),
-            Phone = EmptyToNull(payload.Phone),
-            Campus = payload.Campus,
-            SchoolId = payload.School,
-            DepartmentId = payload.Department,
-            ProgrammeId = programmeId.Value,
-            GraduationYear = graduationYear,
-            EmploymentStatus = payload.EmploymentStatus,
-            EmployerName = EmptyToNull(payload.EmployerName),
-            JobTitle = EmptyToNull(payload.JobTitle),
-            Sector = EmptyToNull(payload.Sector),
+            FullName         = payload.FullName.Trim(),
+            StudentNumber    = EmptyToNull(payload.StudentNumber),
+            Email            = email,
+            Phone            = phone,
+            Campus           = campus,
+            SchoolId         = school.Id,
+            DepartmentId     = department.Id,
+            ProgrammeId      = programmeId.Value,
+            GraduationYear   = graduationYear,
+            EmploymentStatus = employmentStatus,
+            EmployerName     = EmptyToNull(payload.EmployerName),
+            JobTitle         = EmptyToNull(payload.JobTitle),
+            Sector           = EmptyToNull(payload.Sector),
             EmploymentCounty = EmptyToNull(payload.EmploymentCounty),
-            MonthsToEmploy = EmptyToNull(payload.MonthsToEmploy),
-            LinkedinUrl = EmptyToNull(payload.LinkedinUrl),
-            SchoolName = school.Name,
-            DepartmentName = department.Name,
-            ProgrammeName = payload.Programme,
+            MonthsToEmploy   = EmptyToNull(payload.MonthsToEmploy),
+            LinkedinUrl      = EmptyToNull(payload.LinkedinUrl),
+            SchoolName       = school.Name,
+            DepartmentName   = department.Name,
+            ProgrammeName    = programmeName,
         }, null);
     }
 

@@ -6,12 +6,12 @@ public sealed record GraduatePayloadDto
     public string? StudentNumber { get; init; }
     public string? Email { get; init; }
     public string? Phone { get; init; }
-    public required string Campus { get; init; }
-    public required string School { get; init; }
-    public required string Department { get; init; }
-    public required string Programme { get; init; }
-    public required string GraduationYear { get; init; }
-    public required string EmploymentStatus { get; init; }
+    public string? Campus { get; init; }
+    public string? School { get; init; }
+    public string? Department { get; init; }
+    public string? Programme { get; init; }
+    public string? GraduationYear { get; init; }
+    public string? EmploymentStatus { get; init; }
     public string? EmployerName { get; init; }
     public string? JobTitle { get; init; }
     public string? Sector { get; init; }
