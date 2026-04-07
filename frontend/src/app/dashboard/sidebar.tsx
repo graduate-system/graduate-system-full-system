@@ -9,6 +9,7 @@ const MAIN_NAV = [
   { href: "/dashboard/graduates", label: "Graduates", icon: "🎓" },
   { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
   { href: "/dashboard/upload", label: "Upload Data", icon: "📤" },
+  { href: "/dashboard/reports", label: "Reports", icon: "📑" },
 ];
 
 const BOTTOM_NAV = [
