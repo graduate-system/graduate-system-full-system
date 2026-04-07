@@ -2,110 +2,139 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard, GraduationCap, BarChart3,
+  Upload, FileText, Settings, ExternalLink,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const MAIN_NAV = [
-  { href: "/dashboard", label: "Overview", icon: "📊" },
-  { href: "/dashboard/graduates", label: "Graduates", icon: "🎓" },
-  { href: "/dashboard/analytics", label: "Analytics", icon: "📈" },
-  { href: "/dashboard/upload", label: "Upload Data", icon: "📤" },
-  { href: "/dashboard/reports", label: "Reports", icon: "📑" },
-];
-
-const BOTTOM_NAV = [
-  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
-];
+  { href: "/dashboard",           label: "Overview",    icon: LayoutDashboard },
+  { href: "/dashboard/graduates", label: "Graduates",   icon: GraduationCap   },
+  { href: "/dashboard/analytics", label: "Analytics",   icon: BarChart3       },
+  { href: "/dashboard/upload",    label: "Upload Data", icon: Upload          },
+  { href: "/dashboard/reports",   label: "Reports",     icon: FileText        },
+] as const;
 
 function isActive(href: string, pathname: string) {
-  return href === "/dashboard"
-    ? pathname === "/dashboard"
-    : pathname.startsWith(href);
+  return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
 }
 
-export function Sidebar() {
+function NavItem({ href, label, icon: Icon, active, badge, external }: {
+  href: string; label: string; icon: React.ElementType;
+  active?: boolean; badge?: React.ReactNode; external?: boolean;
+}) {
+  const cls = cn(
+    "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+    active
+      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+  );
+  const iconCls = cn(
+    "h-4 w-4 shrink-0 transition-colors",
+    active
+      ? "text-amber-500"
+      : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground"
+  );
+  const inner = (
+    <>
+      <Icon className={iconCls} />
+      <span className="flex-1 truncate">{label}</span>
+      {badge}
+    </>
+  );
+
+  if (external) {
+    return <a href={href} target="_blank" rel="noreferrer" className={cls}>{inner}</a>;
+  }
+  return <Link href={href} className={cls}>{inner}</Link>;
+}
+
+export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex lg:w-56 lg:flex-col lg:fixed lg:inset-y-0 lg:z-40 border-r border-border bg-muted/30">
-      {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-amber-500 bg-gradient-to-br from-green-700 to-green-900 text-[9px] font-black text-amber-400">
-          MUST
-        </div>
-        <div className="leading-tight">
-          <p className="text-xs font-bold text-amber-600 dark:text-amber-400">GradTrack</p>
-          <p className="text-[10px] text-muted-foreground">Committee</p>
+    <aside className="fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar border-r border-sidebar-border">
+
+      {/* Brand header */}
+      <div className="flex h-14 items-center gap-3 px-4 border-b border-sidebar-border shrink-0">
+        <Avatar className="h-8 w-8 rounded-lg border-2 border-amber-500 bg-gradient-to-br from-green-700 to-green-900">
+          <AvatarFallback className="rounded-lg bg-transparent text-[9px] font-black text-amber-400">
+            MUST
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col leading-tight min-w-0">
+          <span className="text-sm font-bold text-amber-600 dark:text-amber-400 truncate">GradTrack</span>
+          <span className="text-[10px] text-sidebar-foreground/50 truncate">Committee Portal</span>
         </div>
       </div>
 
-      {/* Main nav */}
-      <nav className="flex-1 flex flex-col px-3 py-4">
-        <div className="space-y-1">
+      {/* Scrollable nav */}
+      <div className="flex flex-1 flex-col overflow-y-auto px-3 py-4 gap-6">
+
+        {/* Main nav */}
+        <div className="space-y-0.5">
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+            Navigation
+          </p>
           {MAIN_NAV.map((item) => (
-            <NavLink key={item.href} item={item} active={isActive(item.href, pathname)} />
+            <NavItem
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              active={isActive(item.href, pathname)}
+              badge={item.href === "/dashboard/reports" ? (
+                <Badge className="text-[9px] px-1.5 py-0 h-4 bg-amber-500/20 text-amber-600 dark:text-amber-400 border-0 font-semibold">
+                  AI
+                </Badge>
+              ) : undefined}
+            />
           ))}
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+        <Separator className="bg-sidebar-border" />
 
-        {/* Separator + bottom items */}
-        <div className="border-t border-border pt-3 mt-3 space-y-1">
-          {BOTTOM_NAV.map((item) => (
-            <NavLink key={item.href} item={item} active={isActive(item.href, pathname)} />
-          ))}
+        {/* Quick links */}
+        <div className="space-y-0.5">
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+            Quick Links
+          </p>
+          <NavItem
+            href="/register"
+            label="Registration Form"
+            icon={ExternalLink}
+            external
+          />
         </div>
-      </nav>
-
-      {/* Footer */}
-      <div className="border-t border-border px-4 py-3">
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
-          © {new Date().getFullYear()} Meru University of Science & Technology
-        </p>
       </div>
+
+      {/* Footer: settings + user */}
+      <div className="shrink-0 border-t border-sidebar-border px-3 py-3 space-y-0.5">
+        <NavItem
+          href="/dashboard/settings"
+          label="Settings"
+          icon={Settings}
+          active={isActive("/dashboard/settings", pathname)}
+        />
+
+        {/* User pill */}
+        <div className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+          <Avatar className="h-7 w-7 rounded-lg bg-gradient-to-br from-green-700 to-green-900">
+            <AvatarFallback className="rounded-lg bg-transparent text-[10px] font-bold text-white">
+              CM
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="text-xs font-semibold text-sidebar-foreground truncate">Committee Member</span>
+            <span className="text-[10px] text-sidebar-foreground/50 truncate">MUST GradTrack</span>
+          </div>
+        </div>
+      </div>
+
     </aside>
-  );
-}
-
-function NavLink({ item, active }: { item: { href: string; label: string; icon: string }; active: boolean }) {
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
-        active
-          ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
-      <span className="text-base">{item.icon}</span>
-      {item.label}
-    </Link>
-  );
-}
-
-/* Mobile bottom nav */
-export function MobileNav() {
-  const pathname = usePathname();
-  const ALL_ITEMS = [...MAIN_NAV, ...BOTTOM_NAV];
-
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-background/95 backdrop-blur-md py-2 lg:hidden">
-      {ALL_ITEMS.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={cn(
-            "flex flex-col items-center gap-0.5 text-[10px] transition-colors",
-            isActive(item.href, pathname)
-              ? "text-amber-600 dark:text-amber-400 font-semibold"
-              : "text-muted-foreground",
-          )}
-        >
-          <span className="text-lg">{item.icon}</span>
-          {item.label}
-        </Link>
-      ))}
-    </nav>
   );
 }
