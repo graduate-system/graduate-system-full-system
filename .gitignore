@@ -60,3 +60,13 @@ coverage/
 *.coveragexml
 .msCoverageSourceRootsMapping*
 CoverletSourceRootsMapping*
+
+# ── Playwright ───────────────────────────────────────────────
+# Test result artifacts (screenshots, videos, traces)
+test-results/
+playwright-report/
+blob-report/
+
+# Playwright browser cache (downloaded by npx playwright install)
+# Uncomment the line below if you want to ignore the cache globally.
+# ~/.cache/ms-playwright/
