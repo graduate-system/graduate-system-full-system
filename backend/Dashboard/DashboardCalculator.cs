@@ -71,6 +71,15 @@ public static class DashboardCalculator
             .OrderByDescending(x => x.Count)
             .ToList();
 
+        var bySkill = graduates
+            .Where(r => r.Skills is { Count: > 0 })
+            .SelectMany(r => r.Skills!)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .GroupBy(s => s, StringComparer.Ordinal)
+            .Select(g => new NamedCountDto(g.Key, g.Count()))
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
         return new DashboardDataDto(
             Graduates: graduates,
             TotalCount: total,
@@ -81,6 +90,7 @@ public static class DashboardCalculator
             ByCampus: byCampus,
             ByDepartment: byDepartment,
             ByMonthsToEmploy: byMonthsToEmploy,
+            BySkill: bySkill,
             EmploymentRate: total > 0 ? (int)Math.Round(employed.Count / (double)total * 100) : 0
         );
     }
@@ -114,6 +124,7 @@ public sealed record DashboardDataDto(
     IReadOnlyList<NamedCountDto> ByCampus,
     IReadOnlyList<DepartmentCountDto> ByDepartment,
     IReadOnlyList<NamedCountDto> ByMonthsToEmploy,
+    IReadOnlyList<NamedCountDto> BySkill,
     int EmploymentRate
 )
 {
@@ -127,6 +138,7 @@ public sealed record DashboardDataDto(
         ByCampus: [],
         ByDepartment: [],
         ByMonthsToEmploy: [],
+        BySkill: [],
         EmploymentRate: 0
     );
 }

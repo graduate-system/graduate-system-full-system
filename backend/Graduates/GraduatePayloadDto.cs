@@ -18,4 +18,5 @@ public sealed record GraduatePayloadDto
     public string? EmploymentCounty { get; init; }
     public string? MonthsToEmploy { get; init; }
     public string? LinkedinUrl { get; init; }
+    public IReadOnlyList<string>? Skills { get; init; }
 }

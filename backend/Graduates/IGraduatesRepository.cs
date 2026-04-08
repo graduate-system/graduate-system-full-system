@@ -31,7 +31,8 @@ public sealed record GraduateReadModel(
     string? LinkedinUrl,
     string SchoolName,
     string DepartmentName,
-    string ProgrammeName
+    string ProgrammeName,
+    IReadOnlyList<string>? Skills
 );
 
 public sealed record DbStatsReadModel(

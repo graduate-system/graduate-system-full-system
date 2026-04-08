@@ -18,6 +18,7 @@ public sealed record GraduateRow
     public string? EmploymentCounty { get; init; }
     public string? MonthsToEmploy { get; init; }
     public string? LinkedinUrl { get; init; }
+    public IReadOnlyList<string>? Skills { get; init; }
     public required string SchoolName { get; init; }
     public required string DepartmentName { get; init; }
     public required string ProgrammeName { get; init; }

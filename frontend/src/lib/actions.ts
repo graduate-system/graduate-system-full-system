@@ -8,9 +8,9 @@ export type GraduatePayload = {
   email?: string;
   phone?: string;
   campus: string;
-  school: string;       // school id (e.g. "sci")
-  department: string;   // department id (e.g. "cs")
-  programme: string;    // programme name string from the form
+  school: string;
+  department: string;
+  programme: string;
   graduation_year: string;
   employment_status: string;
   employer_name?: string;
@@ -19,6 +19,7 @@ export type GraduatePayload = {
   employment_county?: string;
   months_to_employ?: string;
   linkedin_url?: string;
+  skills?: string[];
 };
 
 export type SubmitResult =

@@ -10,6 +10,7 @@ import {
   KENYAN_COUNTIES,
   EMPLOYMENT_SECTORS,
   GRADUATION_YEARS,
+  GRADUATE_SKILLS,
 } from "@/lib/must-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,7 @@ const schema = z
     employment_county: z.string().optional(),
     months_to_employ: z.string().optional(),
     linkedin_url: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+    skills: z.array(z.string()).max(10, "Select up to 10 skills").optional(),
     consent: z.literal(true, { message: "You must consent to continue" }),
   })
   .refine((d) => d.email || d.phone, {
@@ -181,6 +183,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
       employment_county: "",
       months_to_employ: "",
       linkedin_url: "",
+      skills: [],
       consent: undefined as unknown as true,
     },
     mode: "onChange",
@@ -227,7 +230,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
   const stepFields: (keyof FormData)[][] = [
     ["full_name", "email", "phone"],
     ["campus", "school", "department", "programme", "graduation_year"],
-    ["employment_status", "employer_name", "sector", "consent"],
+    ["employment_status", "employer_name", "sector", "skills", "consent"],
   ];
 
   async function nextStep() {
@@ -256,6 +259,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
         employment_county: data.employment_county || undefined,
         months_to_employ:  data.months_to_employ || undefined,
         linkedin_url:      data.linkedin_url || undefined,
+        skills:            data.skills && data.skills.length > 0 ? data.skills : undefined,
       });
       if (result.success) {
         setSubmittedId(result.id);
@@ -653,6 +657,58 @@ export function GraduateForm({ schools }: { schools: School[] }) {
                 </Field>
               </>
             )}
+
+            {/* Skills */}
+            <div className="sm:col-span-2">
+              <Controller
+                name="skills"
+                control={control}
+                render={({ field }) => {
+                  const selected = field.value ?? [];
+                  function toggle(skill: string) {
+                    field.onChange(
+                      selected.includes(skill)
+                        ? selected.filter((s) => s !== skill)
+                        : selected.length < 10 ? [...selected, skill] : selected
+                    );
+                  }
+                  return (
+                    <Field
+                      label="Key Skills Used in Your Work"
+                      hint="Select up to 10 skills that are most relevant to your current role or studies"
+                      error={errors.skills?.message}
+                    >
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {GRADUATE_SKILLS.map((skill) => {
+                          const active = selected.includes(skill);
+                          return (
+                            <button
+                              key={skill}
+                              type="button"
+                              onClick={() => toggle(skill)}
+                              className={cn(
+                                "rounded-full border px-3 py-1 text-xs font-medium transition-all",
+                                active
+                                  ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 ring-1 ring-amber-500"
+                                  : "border-border hover:border-amber-300 hover:bg-muted/40 text-muted-foreground",
+                                !active && selected.length >= 10 && "opacity-40 cursor-not-allowed",
+                              )}
+                            >
+                              {active && <span className="mr-1">✓</span>}{skill}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {selected.length > 0 && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {selected.length}/10 selected
+                        </p>
+                      )}
+                    </Field>
+                  );
+                }}
+              />
+            </div>
 
             {/* Consent */}
             <div

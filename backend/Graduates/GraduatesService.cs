@@ -104,6 +104,7 @@ public sealed class GraduatesService(SupabaseMetadataRepository metadata, IGradu
             EmploymentCounty = EmptyToNull(payload.EmploymentCounty),
             MonthsToEmploy   = EmptyToNull(payload.MonthsToEmploy),
             LinkedinUrl      = EmptyToNull(payload.LinkedinUrl),
+            Skills           = payload.Skills is { Count: > 0 } ? payload.Skills : null,
             SchoolName       = school.Name,
             DepartmentName   = department.Name,
             ProgrammeName    = programmeName,

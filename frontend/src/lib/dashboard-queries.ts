@@ -24,6 +24,7 @@ export type Graduate = {
   school_name: string;
   department_name: string;
   programme_name: string;
+  skills: string[] | null;
 };
 
 export type DashboardData = {
@@ -36,6 +37,7 @@ export type DashboardData = {
   byCampus: { name: string; count: number }[];
   byDepartment: { name: string; school: string; count: number }[];
   byMonthsToEmploy: { name: string; count: number }[];
+  bySkill: { name: string; count: number }[];
   employmentRate: number;
 };
 
@@ -52,6 +54,7 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     byCampus:         resp.by_campus,
     byDepartment:     resp.by_department,
     byMonthsToEmploy: resp.by_months_to_employ,
+    bySkill:          resp.by_skill,
     employmentRate:   resp.employment_rate,
   };
 }
@@ -66,5 +69,6 @@ type BackendDashboardResponse = {
   by_campus: { name: string; count: number }[];
   by_department: { name: string; school: string; count: number }[];
   by_months_to_employ: { name: string; count: number }[];
+  by_skill: { name: string; count: number }[];
   employment_rate: number;
 };

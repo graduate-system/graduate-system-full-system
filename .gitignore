@@ -1,46 +1,62 @@
-# Dependencies
+# ── Node / Frontend ─────────────────────────────────────────
 node_modules/
 .pnp
 .pnp.js
 
-# Build outputs
+# Next.js build output
 .next/
 out/
 dist/
 build/
 
-# .NET build outputs
+# TypeScript
+*.tsbuildinfo
+
+# ── .NET / Backend ───────────────────────────────────────────
+# Build artifacts
 **/bin/
 **/obj/
-TestResults/
-Api_Data/
+**/TestResults/
+
+# Runtime data (committee PIN file, etc.)
+**/Api_Data/
+
+# ── Secrets — NEVER commit these ────────────────────────────
+# Local dev settings contain real API keys, DB credentials, secrets
+**/appsettings.Development.json
+**/appsettings.*.local.json
+**/appsettings.local.json
+
+# .NET user secrets
+**/secrets.json
 
 # Environment files
 .env
 .env.local
 .env.*.local
 
-# .NET local secrets
-appsettings.Development.json
-appsettings.*.local.json
-
-# Logs
+# ── Logs ─────────────────────────────────────────────────────
 *.log
 npm-debug.log*
+**/logs/
 
-# OS
+# ── OS ───────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# IDE
+# ── IDE ──────────────────────────────────────────────────────
 .vscode/
 .idea/
 .vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# TypeScript
-*.tsbuildinfo
-
-# Coverage
+# ── Test coverage ────────────────────────────────────────────
 coverage/
 *.coverage
 *.coveragexml
+.msCoverageSourceRootsMapping*
+CoverletSourceRootsMapping*

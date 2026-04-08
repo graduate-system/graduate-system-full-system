@@ -45,3 +45,44 @@ export const GRADUATION_YEARS = Array.from(
   { length: 15 },
   (_, i) => String(new Date().getFullYear() - i)
 );
+
+export const GRADUATE_SKILLS = [
+  // Technical / Digital
+  "Programming / Software Development",
+  "Data Analysis & Statistics",
+  "Database Management (SQL/NoSQL)",
+  "Networking & IT Infrastructure",
+  "Cybersecurity",
+  "Cloud Computing (AWS/Azure/GCP)",
+  "Machine Learning / AI",
+  "Web Development",
+  "Mobile App Development",
+  "GIS & Remote Sensing",
+  // Engineering & Science
+  "AutoCAD / Engineering Design",
+  "Laboratory & Research Skills",
+  "Environmental Assessment",
+  "Surveying & Geomatics",
+  // Business & Management
+  "Project Management",
+  "Financial Analysis & Accounting",
+  "Marketing & Digital Marketing",
+  "Supply Chain & Logistics",
+  "Entrepreneurship & Business Development",
+  // Health & Social
+  "Clinical / Patient Care",
+  "Public Health & Epidemiology",
+  "Community Development",
+  // Agriculture
+  "Crop Production & Agronomy",
+  "Animal Husbandry & Veterinary",
+  "Agricultural Extension",
+  // Soft Skills
+  "Communication & Presentation",
+  "Leadership & Team Management",
+  "Problem Solving & Critical Thinking",
+  "Report Writing & Documentation",
+  "Customer Service",
+] as const;
+
+export type GraduateSkill = (typeof GRADUATE_SKILLS)[number];

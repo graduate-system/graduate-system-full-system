@@ -27,6 +27,7 @@ const TABS = [
   { id: "rates", label: "Employment Rates", icon: "📊", desc: "% employed by school & dept" },
   { id: "programmes", label: "Programmes", icon: "📚", desc: "Top courses & their outcomes" },
   { id: "sectors", label: "Sectors & Employers", icon: "🏢", desc: "Where graduates work" },
+  { id: "skills", label: "Skills", icon: "🛠️", desc: "In-demand skills from graduates" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -100,6 +101,31 @@ export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mu
     const map = new Map<string, number>();
     rows.forEach((r) => map.set(r.employer_name!, (map.get(r.employer_name!) ?? 0) + 1));
     return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 12);
+  }, [grads, compareSchool]);
+
+  const topSkills = useMemo(() => {
+    const rows = compareSchool ? grads.filter((r) => r.school_id === compareSchool) : grads;
+    const map = new Map<string, number>();
+    rows.forEach((r) => r.skills?.forEach((s) => map.set(s, (map.get(s) ?? 0) + 1)));
+    return [...map.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  }, [grads, compareSchool]);
+
+  const skillsByEmploymentRate = useMemo(() => {
+    const rows = compareSchool ? grads.filter((r) => r.school_id === compareSchool) : grads;
+    const map = new Map<string, { total: number; employed: number }>();
+    rows.forEach((r) => {
+      r.skills?.forEach((s) => {
+        const e = map.get(s) ?? { total: 0, employed: 0 };
+        e.total++;
+        if (EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number])) e.employed++;
+        map.set(s, e);
+      });
+    });
+    return [...map.entries()]
+      .filter(([, v]) => v.total >= 3)
+      .map(([name, v]) => ({ name, count: Math.round((v.employed / v.total) * 100) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20);
   }, [grads, compareSchool]);
 
   const schoolLabel = compareSchool
@@ -177,6 +203,47 @@ export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mu
           <ChartCard title={`Top Employers — ${schoolLabel}`} subtitle="Most common employers" hint="Organizations that have hired the most MUST graduates">
             <DashboardBarChart data={topEmployers} layout="vertical" color="#f59e0b" height={Math.max(250, topEmployers.length * 36)} />
           </ChartCard>
+        </div>
+      )}
+
+      {activeTab === "skills" && (
+        <div className="space-y-4">
+          {topSkills.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed">
+              <span className="text-4xl mb-3">🛠️</span>
+              <p className="text-sm font-semibold text-foreground">No skills data yet</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                Skills will appear here once graduates select them during registration.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <ChartCard
+                title={`Most Common Skills — ${schoolLabel}`}
+                subtitle="Skills reported by graduates"
+                hint="Longer bar = more graduates have this skill"
+              >
+                <DashboardBarChart
+                  data={topSkills}
+                  layout="vertical"
+                  color="#8b5cf6"
+                  height={Math.max(300, topSkills.length * 36)}
+                />
+              </ChartCard>
+              <ChartCard
+                title={`Employment Rate by Skill — ${schoolLabel}`}
+                subtitle="% employed among graduates with each skill (min. 3 graduates)"
+                hint="Higher % = graduates with this skill are more likely to be employed"
+              >
+                <DashboardBarChart
+                  data={skillsByEmploymentRate}
+                  layout="vertical"
+                  color="#16a34a"
+                  height={Math.max(300, skillsByEmploymentRate.length * 36)}
+                />
+              </ChartCard>
+            </div>
+          )}
         </div>
       )}
     </div>
