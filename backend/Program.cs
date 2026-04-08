@@ -36,6 +36,8 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
+    var permitLimit = builder.Environment.IsEnvironment("Testing") ? 10_000 : 10;
+
     options.AddPolicy("committee-login", httpContext =>
     {
         var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -44,7 +46,7 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 Window = TimeSpan.FromMinutes(1),
-                PermitLimit = 10,
+                PermitLimit = permitLimit,
                 QueueLimit = 0,
                 AutoReplenishment = true,
             });
