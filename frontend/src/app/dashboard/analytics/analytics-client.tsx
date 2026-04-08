@@ -6,7 +6,7 @@ import type { School as MustSchool } from "@/lib/must-queries";
 import { EMPLOYED_STATUSES, shortSchool, shortDept, shortSector, shortProg } from "@/lib/dashboard-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { DashboardBarChart, DashboardPieChart } from "../charts";
+import { DashboardBarChart, DashboardPieChart, ComparisonBarChart } from "../charts";
 
 function ChartCard({ title, subtitle, hint, children }: {
   title: string; subtitle?: string; hint?: string; children: React.ReactNode;
@@ -35,7 +35,11 @@ type TabId = (typeof TABS)[number]["id"];
 export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mustSchools: MustSchool[] }) {
   const [compareSchool, setCompareSchool] = useState("");
   const [activeTab, setActiveTab] = useState<TabId>("rates");
+  const [compareYearA, setCompareYearA] = useState("");
+  const [compareYearB, setCompareYearB] = useState("");
   const grads = data.graduates;
+
+  const uniqueYears = [...new Set(grads.map((r) => r.graduation_year))].sort((a, b) => b - a);
 
   const rateBySchool = useMemo(() => {
     const map = new Map<string, { total: number; employed: number }>();
@@ -132,10 +136,35 @@ export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mu
     ? mustSchools.find((s) => s.id === compareSchool)?.name.match(/\(([^)]+)\)/)?.[1] ?? "Selected School"
     : "All Schools";
 
+  // ── Year comparison for rates tab ─────────────────────────────────────────────
+  function ratesByYear(year: string) {
+    const base = compareSchool ? grads.filter((r) => r.school_id === compareSchool) : grads;
+    const rows = year ? base.filter((r) => String(r.graduation_year) === year) : base;
+    const map = new Map<string, { total: number; employed: number }>();
+    rows.forEach((r) => {
+      const k = shortDept(r.department_name);
+      const e = map.get(k) ?? { total: 0, employed: 0 };
+      e.total++;
+      if (EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number])) e.employed++;
+      map.set(k, e);
+    });
+    return new Map([...map.entries()].map(([k, v]) => [k, v.total > 0 ? Math.round((v.employed / v.total) * 100) : 0]));
+  }
+
+  const yearComparisonDeptData = useMemo(() => {
+    if (!compareYearA || !compareYearB) return [];
+    const mapA = ratesByYear(compareYearA);
+    const mapB = ratesByYear(compareYearB);
+    const allDepts = [...new Set([...mapA.keys(), ...mapB.keys()])];
+    return allDepts
+      .map((name) => ({ name, a: mapA.get(name) ?? 0, b: mapB.get(name) ?? 0 }))
+      .sort((x, y) => (y.a + y.b) - (x.a + x.b));
+  }, [compareYearA, compareYearB, compareSchool, grads]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="space-y-5">
-      {/* School selector */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-2.5 sm:p-3">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 p-2.5 sm:p-3">
         <span className="text-xs font-bold shrink-0">🏫 Compare by School:</span>
         <select value={compareSchool} onChange={(e) => setCompareSchool(e.target.value)}
           className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring min-w-0">
@@ -146,6 +175,25 @@ export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mu
         </select>
         {compareSchool && (
           <button onClick={() => setCompareSchool("")} className="text-xs text-amber-600 hover:text-amber-500 font-medium">✕ Clear</button>
+        )}
+        <span className="text-muted-foreground/40 hidden sm:block">|</span>
+        <span className="text-xs font-bold shrink-0">↔️ Compare Years:</span>
+        <select value={compareYearA} onChange={(e) => setCompareYearA(e.target.value)}
+          className="h-8 rounded-md border border-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 text-xs font-semibold text-blue-700 dark:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-0">
+          <option value="">Year A</option>
+          {uniqueYears.map((y) => (
+            <option key={y} value={String(y)} disabled={String(y) === compareYearB}>{y}</option>
+          ))}
+        </select>
+        <select value={compareYearB} onChange={(e) => setCompareYearB(e.target.value)}
+          className="h-8 rounded-md border border-green-500 bg-green-50 dark:bg-green-950/30 px-2 text-xs font-semibold text-green-700 dark:text-green-300 focus:outline-none focus:ring-2 focus:ring-green-500 min-w-0">
+          <option value="">Year B</option>
+          {uniqueYears.map((y) => (
+            <option key={y} value={String(y)} disabled={String(y) === compareYearA}>{y}</option>
+          ))}
+        </select>
+        {(compareYearA || compareYearB) && (
+          <button onClick={() => { setCompareYearA(""); setCompareYearB(""); }} className="text-xs text-amber-600 hover:text-amber-500 font-medium">✕</button>
         )}
       </div>
 
@@ -174,13 +222,29 @@ export function AnalyticsClient({ data, mustSchools }: { data: DashboardData; mu
 
       {/* Tab content */}
       {activeTab === "rates" && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <ChartCard title="Employment Rate by School" subtitle="% of graduates employed per faculty" hint="Values show percentage — 100% means all graduates are employed">
-            <DashboardBarChart data={rateBySchool} color="#16a34a" />
-          </ChartCard>
-          <ChartCard title={`Employment Rate by Department — ${schoolLabel}`} subtitle="% employed per department" hint="Select a school above to drill down into its departments">
-            <DashboardBarChart data={rateByDept} layout="vertical" color="#3b82f6" height={Math.max(250, rateByDept.length * 36)} />
-          </ChartCard>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <ChartCard title="Employment Rate by School" subtitle="% of graduates employed per faculty" hint="Values show percentage — 100% means all graduates are employed">
+              <DashboardBarChart data={rateBySchool} color="#16a34a" />
+            </ChartCard>
+            <ChartCard title={`Employment Rate by Department — ${schoolLabel}`} subtitle="% employed per department" hint="Select a school above to drill down into its departments">
+              <DashboardBarChart data={rateByDept} layout="vertical" color="#3b82f6" height={Math.max(250, rateByDept.length * 36)} />
+            </ChartCard>
+          </div>
+          {compareYearA && compareYearB && yearComparisonDeptData.length > 0 && (
+            <ChartCard
+              title={`Department Employment Rate — ${compareYearA} vs ${compareYearB}`}
+              subtitle={schoolLabel !== "All Schools" ? `Filtered to ${schoolLabel}` : "All Schools"}
+              hint="Blue = Year A, Green = Year B — compare how each department’s employment rate changed between cohorts"
+            >
+              <ComparisonBarChart
+                data={yearComparisonDeptData}
+                labelA={compareYearA}
+                labelB={compareYearB}
+                height={Math.max(300, yearComparisonDeptData.length * 40)}
+              />
+            </ChartCard>
+          )}
         </div>
       )}
 

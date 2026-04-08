@@ -273,6 +273,34 @@ export function HeroStatusChart({ data }: { data: ChartItem[] }) {
   );
 }
 
+/* ── Grouped Comparison Bar Chart (two years side by side) ── */
+export function ComparisonBarChart({
+  data, labelA, labelB, height = 320,
+}: {
+  data: { name: string; a: number; b: number }[];
+  labelA: string;
+  labelB: string;
+  height?: number;
+}) {
+  if (!data.length) return <EmptyChart message="No data available" />;
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ left: -10, right: 10, top: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} angle={-25} textAnchor="end" height={55} interval={0} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+        <Tooltip
+          contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
+          labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
+        />
+        <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={8} />
+        <Bar dataKey="a" name={labelA} fill="#3b82f6" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="b" name={labelB} fill="#16a34a" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 /* ── Empty state ── */
 function EmptyChart({ message }: { message: string }) {
   return (

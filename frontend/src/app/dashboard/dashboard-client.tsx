@@ -12,6 +12,7 @@ import {
   DashboardAreaChart,
   EmploymentGauge,
   HeroStatusChart,
+  ComparisonBarChart,
 } from "./charts";
 
 /* ── Filter select ── */
@@ -76,10 +77,11 @@ function ChartCard({ title, subtitle, hint, children, className }: {
 
 /* ── Tab navigation card ── */
 const TABS = [
-  { id: "overview", label: "Overview", icon: "📊", desc: "Key metrics & status" },
-  { id: "employment", label: "Employment", icon: "💼", desc: "Sectors & time-to-hire" },
-  { id: "academic", label: "Academic", icon: "🏫", desc: "Schools & departments" },
-  { id: "trends", label: "Trends", icon: "📈", desc: "Year-over-year data" },
+  { id: "overview",  label: "Overview",      icon: "📊", desc: "Key metrics & status" },
+  { id: "employment",label: "Employment",     icon: "💼", desc: "Sectors & time-to-hire" },
+  { id: "academic",  label: "Academic",       icon: "🏫", desc: "Schools & departments" },
+  { id: "trends",    label: "Trends",         icon: "📈", desc: "Year-over-year data" },
+  { id: "compare",   label: "Compare Years",  icon: "↔️",  desc: "Side-by-side cohort view" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -90,6 +92,8 @@ export function DashboardOverview({ data, mustSchools }: { data: DashboardData; 
   const [yearFilter, setYearFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [yearA, setYearA] = useState("");
+  const [yearB, setYearB] = useState("");
 
   const filteredGrads = useMemo(() => {
     let rows = data.graduates;
@@ -125,6 +129,58 @@ export function DashboardOverview({ data, mustSchools }: { data: DashboardData; 
   const uniqueYears = [...new Set(data.graduates.map((r) => r.graduation_year))].sort((a, b) => b - a);
   const uniqueStatuses = [...new Set(data.graduates.map((r) => r.employment_status))];
   const hasFilters = schoolFilter || yearFilter || statusFilter;
+
+  // ── Year comparison helpers ──────────────────────────────────────────────
+  function cohortStats(year: string) {
+    if (!year) return null;
+    const rows = data.graduates.filter((r) => String(r.graduation_year) === year);
+    if (!rows.length) return null;
+    const employed = rows.filter((r) =>
+      EMPLOYED_STATUSES.includes(r.employment_status as (typeof EMPLOYED_STATUSES)[number]));
+    const rate = Math.round((employed.length / rows.length) * 100);
+    const byStatus = agg(rows, (r) => r.employment_status);
+    const bySchool = agg(rows, (r) => shortSchool(r.school_name));
+    const bySector = agg(rows.filter((r) => r.sector), (r) => shortSector(r.sector!));
+    const seeking = rows.filter((r) => r.employment_status === "Unemployed — Seeking").length;
+    return { total: rows.length, employed: employed.length, rate, byStatus, bySchool, bySector, seeking };
+  }
+
+  const statsA = useMemo(() => cohortStats(yearA), [yearA, data.graduates]); // eslint-disable-line react-hooks/exhaustive-deps
+  const statsB = useMemo(() => cohortStats(yearB), [yearB, data.graduates]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Build merged comparison data for grouped bar charts
+  const compareSchoolData = useMemo(() => {
+    if (!statsA || !statsB) return [];
+    const allNames = [...new Set([...statsA.bySchool.map((x) => x.name), ...statsB.bySchool.map((x) => x.name)])];
+    return allNames.map((name) => ({
+      name,
+      a: statsA.bySchool.find((x) => x.name === name)?.count ?? 0,
+      b: statsB.bySchool.find((x) => x.name === name)?.count ?? 0,
+    }));
+  }, [statsA, statsB]);
+
+  const compareSectorData = useMemo(() => {
+    if (!statsA || !statsB) return [];
+    const allNames = [...new Set([...statsA.bySector.map((x) => x.name), ...statsB.bySector.map((x) => x.name)])];
+    return allNames
+      .map((name) => ({
+        name,
+        a: statsA.bySector.find((x) => x.name === name)?.count ?? 0,
+        b: statsB.bySector.find((x) => x.name === name)?.count ?? 0,
+      }))
+      .sort((x, y) => (y.a + y.b) - (x.a + x.b))
+      .slice(0, 10);
+  }, [statsA, statsB]);
+
+  const compareStatusData = useMemo(() => {
+    if (!statsA || !statsB) return [];
+    const allNames = [...new Set([...statsA.byStatus.map((x) => x.name), ...statsB.byStatus.map((x) => x.name)])];
+    return allNames.map((name) => ({
+      name,
+      a: statsA.byStatus.find((x) => x.name === name)?.count ?? 0,
+      b: statsB.byStatus.find((x) => x.name === name)?.count ?? 0,
+    }));
+  }, [statsA, statsB]);
 
   const seekingCount = filteredGrads.filter((r) => r.employment_status === "Unemployed — Seeking").length;
   const studiesCount = filteredGrads.filter((r) => r.employment_status === "Further Studies").length;
@@ -263,6 +319,181 @@ export function DashboardOverview({ data, mustSchools }: { data: DashboardData; 
               <DashboardBarChart data={byYear.map((y) => ({ name: String(y.year), count: y.count > 0 ? Math.round((y.employed / y.count) * 100) : 0 }))} color="#16a34a" />
             </ChartCard>
           </div>
+        </div>
+      )}
+
+      {activeTab === "compare" && (
+        <div className="space-y-5">
+          {/* Year pickers */}
+          <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Year A</p>
+              <select
+                value={yearA}
+                onChange={(e) => setYearA(e.target.value)}
+                className="h-9 rounded-md border border-blue-400 bg-blue-50 dark:bg-blue-950/30 px-3 text-sm font-semibold text-blue-700 dark:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">Select year…</option>
+                {uniqueYears.map((y) => (
+                  <option key={y} value={String(y)} disabled={String(y) === yearB}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="text-2xl font-black text-muted-foreground pb-1">↔️</div>
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Year B</p>
+              <select
+                value={yearB}
+                onChange={(e) => setYearB(e.target.value)}
+                className="h-9 rounded-md border border-green-500 bg-green-50 dark:bg-green-950/30 px-3 text-sm font-semibold text-green-700 dark:text-green-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Select year…</option>
+                {uniqueYears.map((y) => (
+                  <option key={y} value={String(y)} disabled={String(y) === yearA}>{y}</option>
+                ))}
+              </select>
+            </div>
+            {(yearA || yearB) && (
+              <button
+                onClick={() => { setYearA(""); setYearB(""); }}
+                className="text-xs text-amber-600 hover:text-amber-500 font-medium pb-1"
+              >
+                ✕ Clear
+              </button>
+            )}
+          </div>
+
+          {/* Prompt when no years selected */}
+          {(!yearA || !yearB) && (
+            <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed">
+              <span className="text-4xl mb-3">↔️</span>
+              <p className="text-sm font-semibold text-foreground">Select two graduation years to compare</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                Pick Year A and Year B above to see a side-by-side breakdown of employment outcomes, sectors, and school distribution.
+              </p>
+            </div>
+          )}
+
+          {/* Comparison content */}
+          {yearA && yearB && statsA && statsB && (
+            <div className="space-y-5">
+              {/* KPI delta cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {([
+                  {
+                    label: "Total Graduates",
+                    a: statsA.total, b: statsB.total,
+                    fmt: (v: number) => v.toLocaleString(),
+                    icon: "🎓",
+                  },
+                  {
+                    label: "Employment Rate",
+                    a: statsA.rate, b: statsB.rate,
+                    fmt: (v: number) => `${v}%`,
+                    icon: "💼",
+                  },
+                  {
+                    label: "Employed",
+                    a: statsA.employed, b: statsB.employed,
+                    fmt: (v: number) => v.toLocaleString(),
+                    icon: "✅",
+                  },
+                  {
+                    label: "Seeking Work",
+                    a: statsA.seeking, b: statsB.seeking,
+                    fmt: (v: number) => v.toLocaleString(),
+                    icon: "🔍",
+                  },
+                ] as const).map(({ label, a, b, fmt, icon }) => {
+                  const delta = (b as number) - (a as number);
+                  const isRate = label === "Employment Rate";
+                  const positive = isRate ? delta > 0 : label === "Seeking Work" ? delta < 0 : delta > 0;
+                  const neutral = delta === 0;
+                  return (
+                    <div key={label} className="rounded-xl border bg-muted/20 p-3 space-y-2">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <span>{icon}</span>{label}
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-center">
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">{yearA}</p>
+                          <p className="text-lg font-black text-blue-700 dark:text-blue-300">{fmt(a as number)}</p>
+                        </div>
+                        <div className={cn(
+                          "text-xs font-bold px-2 py-0.5 rounded-full",
+                          neutral ? "bg-muted text-muted-foreground" :
+                          positive ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" :
+                          "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                        )}>
+                          {neutral ? "↔" : delta > 0 ? `+${fmt(Math.abs(delta))}` : `-${fmt(Math.abs(delta))}`}
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-green-600 dark:text-green-400 font-bold">{yearB}</p>
+                          <p className="text-lg font-black text-green-700 dark:text-green-300">{fmt(b as number)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Employment rate gauges side by side */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ChartCard title={`Employment Rate — ${yearA}`} subtitle={`${statsA.total.toLocaleString()} graduates`}>
+                  <EmploymentGauge rate={statsA.rate} total={statsA.total} employed={statsA.employed} />
+                </ChartCard>
+                <ChartCard title={`Employment Rate — ${yearB}`} subtitle={`${statsB.total.toLocaleString()} graduates`}>
+                  <EmploymentGauge rate={statsB.rate} total={statsB.total} employed={statsB.employed} />
+                </ChartCard>
+              </div>
+
+              {/* Grouped bar charts */}
+              <ChartCard
+                title="Employment Status Comparison"
+                subtitle={`${yearA} vs ${yearB}`}
+                hint="Blue = Year A, Green = Year B"
+              >
+                <ComparisonBarChart
+                  data={compareStatusData}
+                  labelA={yearA}
+                  labelB={yearB}
+                  height={300}
+                />
+              </ChartCard>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <ChartCard
+                  title="Graduates by School"
+                  subtitle={`${yearA} vs ${yearB}`}
+                  hint="Blue = Year A, Green = Year B"
+                >
+                  <ComparisonBarChart
+                    data={compareSchoolData}
+                    labelA={yearA}
+                    labelB={yearB}
+                  />
+                </ChartCard>
+                <ChartCard
+                  title="Top Sectors"
+                  subtitle={`${yearA} vs ${yearB}`}
+                  hint="Blue = Year A, Green = Year B"
+                >
+                  <ComparisonBarChart
+                    data={compareSectorData}
+                    labelA={yearA}
+                    labelB={yearB}
+                  />
+                </ChartCard>
+              </div>
+            </div>
+          )}
+
+          {/* One year selected but no data */}
+          {yearA && yearB && (!statsA || !statsB) && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20 p-4 text-sm text-amber-700 dark:text-amber-400">
+              ⚠️ No graduate data found for one or both selected years.
+            </div>
+          )}
         </div>
       )}
     </div>
