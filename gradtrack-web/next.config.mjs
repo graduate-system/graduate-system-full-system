@@ -2,6 +2,7 @@
 const backendUrl = process.env.BACKEND_URL || "http://localhost:5291";
 
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   images: {

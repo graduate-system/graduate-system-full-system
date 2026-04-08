@@ -1,0 +1,11 @@
+bin/
+obj/
+tests/
+Api_Data/
+appsettings.Development.json
+appsettings.*.local.json
+.git/
+.gitignore
+*.md
+.vs/
+.idea/
