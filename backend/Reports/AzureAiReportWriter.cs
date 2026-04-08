@@ -106,6 +106,14 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
         AUDIENCE: University Senate, academic deans, accreditation bodies (CUE), government ministries,
         development partners, and donors. Write accordingly — authoritative, evidence-based, and strategic.
 
+        SCOPE DISCIPLINE — THIS IS CRITICAL:
+        - You will be given a REPORT SCOPE at the top of the data.
+        - Write ONLY about the graduates, schools, departments, and programmes within that scope.
+        - If the scope is a single programme (e.g. "Bachelor of Co-operative Management"), every
+          statistic, finding, and recommendation must relate exclusively to that programme.
+        - NEVER introduce data, schools, departments, or programmes that are not in the provided data.
+        - If a table (e.g. By School, By Department) is not provided, do not invent or reference it.
+
         WRITING STANDARDS:
         - Open each section with a strong topic sentence that states the key finding directly.
         - Embed specific numbers and percentages naturally within prose — do not use bullet lists.
@@ -156,9 +164,20 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
         var f = data.Filters;
         var sb = new StringBuilder();
 
-        // ── Header ──────────────────────────────────────────────────────────
-        sb.AppendLine($"REPORT SCOPE: {f.ScopeLabel}");
-        sb.AppendLine($"REPORT DATE:  {DateTime.Now:MMMM dd, yyyy}");
+        // ── Scope header — tell the AI exactly what was filtered ─────────────
+        sb.AppendLine("=== REPORT SCOPE ===");
+        sb.AppendLine($"Scope label      : {f.ScopeLabel}");
+        if (!string.IsNullOrWhiteSpace(f.SchoolName))      sb.AppendLine($"School           : {f.SchoolName}");
+        if (!string.IsNullOrWhiteSpace(f.DepartmentName))  sb.AppendLine($"Department       : {f.DepartmentName}");
+        if (!string.IsNullOrWhiteSpace(f.ProgrammeName))   sb.AppendLine($"Programme        : {f.ProgrammeName}");
+        if (!string.IsNullOrWhiteSpace(f.Campus))          sb.AppendLine($"Campus           : {f.Campus}");
+        if (!string.IsNullOrWhiteSpace(f.EmploymentStatus)) sb.AppendLine($"Employment filter: {f.EmploymentStatus}");
+        if (f.YearFrom.HasValue || f.YearTo.HasValue)
+            sb.AppendLine($"Year range       : {f.YearFrom?.ToString() ?? "earliest"} – {f.YearTo?.ToString() ?? "latest"}");
+        sb.AppendLine($"Report date      : {DateTime.Now:MMMM dd, yyyy}");
+        sb.AppendLine();
+        sb.AppendLine("IMPORTANT: Write the entire report ONLY about the graduates in this scope.");
+        sb.AppendLine("Do NOT reference data, schools, departments, or programmes outside this scope.");
         sb.AppendLine();
 
         // ── Headline figures ────────────────────────────────────────────────
@@ -178,16 +197,19 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
         sb.AppendLine();
 
         // ── Sectors ─────────────────────────────────────────────────────────
-        sb.AppendLine("=== TOP EMPLOYMENT SECTORS ===");
-        foreach (var item in s.BySector.Take(8))
+        if (s.BySector.Count > 0)
         {
-            var pct = s.TotalCount > 0 ? Math.Round(item.Count * 100.0 / s.TotalCount, 1) : 0;
-            sb.AppendLine($"  {item.Name,-40} {item.Count,5} graduates  ({pct}%)");
+            sb.AppendLine("=== TOP EMPLOYMENT SECTORS ===");
+            foreach (var item in s.BySector.Take(8))
+            {
+                var pct = s.TotalCount > 0 ? Math.Round(item.Count * 100.0 / s.TotalCount, 1) : 0;
+                sb.AppendLine($"  {item.Name,-40} {item.Count,5} graduates  ({pct}%)");
+            }
+            sb.AppendLine();
         }
-        sb.AppendLine();
 
-        // ── By school ───────────────────────────────────────────────────────
-        if (s.BySchool.Count > 1)
+        // ── By school — only show when scope spans multiple schools ──────────
+        if (s.BySchool.Count > 1 && string.IsNullOrWhiteSpace(f.SchoolId))
         {
             sb.AppendLine("=== GRADUATES BY SCHOOL ===");
             foreach (var item in s.BySchool)
@@ -195,8 +217,8 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
             sb.AppendLine();
         }
 
-        // ── By department ───────────────────────────────────────────────────
-        if (s.ByDepartment.Count > 0)
+        // ── By department — only show when scope spans multiple departments ──
+        if (s.ByDepartment.Count > 1 && string.IsNullOrWhiteSpace(f.DepartmentId))
         {
             sb.AppendLine("=== TOP DEPARTMENTS ===");
             foreach (var item in s.ByDepartment.Take(10))
@@ -204,8 +226,8 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
             sb.AppendLine();
         }
 
-        // ── By campus ───────────────────────────────────────────────────────
-        if (s.ByCampus.Count > 1)
+        // ── By campus — only show when scope spans multiple campuses ─────────
+        if (s.ByCampus.Count > 1 && string.IsNullOrWhiteSpace(f.Campus))
         {
             sb.AppendLine("=== GRADUATES BY CAMPUS ===");
             foreach (var item in s.ByCampus)
@@ -221,13 +243,12 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
             sb.AppendLine($"  {item.Year}  |  {item.Count,5} graduates  |  {item.Employed,5} employed  |  {rate}% employment rate");
         }
 
-        // Derived trend insight for the model
         if (s.ByYear.Count >= 2)
         {
             var latest  = s.ByYear[^1];
             var prior   = s.ByYear[^2];
-            var latestRate = latest.Count  > 0 ? Math.Round(latest.Employed  * 100.0 / latest.Count,  1) : 0;
-            var priorRate  = prior.Count   > 0 ? Math.Round(prior.Employed   * 100.0 / prior.Count,   1) : 0;
+            var latestRate = latest.Count > 0 ? Math.Round(latest.Employed * 100.0 / latest.Count, 1) : 0;
+            var priorRate  = prior.Count  > 0 ? Math.Round(prior.Employed  * 100.0 / prior.Count,  1) : 0;
             var delta = Math.Round(latestRate - priorRate, 1);
             var direction = delta >= 0 ? "up" : "down";
             sb.AppendLine($"  → Latest cohort ({latest.Year}) employment rate is {direction} {Math.Abs(delta)} percentage points vs {prior.Year}.");
@@ -243,7 +264,8 @@ public sealed class AzureAiReportWriter(IOptions<AzureAiOptions> options, ILogge
             sb.AppendLine();
         }
 
-        sb.AppendLine("Using the data above, write the four-section report now. Write in flowing paragraphs — no bullet points.");
+        sb.AppendLine("Using ONLY the data above, write the report now. Write in flowing paragraphs — no bullet points.");
+        sb.AppendLine($"Every statistic you cite must come from the data above. The scope is: {f.ScopeLabel}.");
 
         return sb.ToString();
     }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { fetchDepartments, fetchProgrammes, type School, type Department } from "@/lib/must-queries";
+import { REPORT_YEARS } from "@/lib/must-data";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const GRADUATION_YEARS = Array.from({ length: 15 }, (_, i) => new Date().getFullYear() - i);
 const CAMPUSES = ["Main Campus (Nchiru)", "Meru Town Campus"] as const;
 const EMPLOYMENT_STATUSES = [
   "Employed (Full-time)", "Employed (Part-time)", "Self-employed / Entrepreneur",
@@ -223,15 +223,15 @@ export function ReportsClient({ schools }: { schools: School[] }) {
 
   function buildBody() {
     return {
-      schoolId:       schoolId || null,
-      schoolName:     schools.find((s) => s.id === schoolId)?.name ?? null,
-      departmentId:   deptId || null,
-      departmentName: departments.find((d) => d.id === deptId)?.name ?? null,
-      programmeName:  programme || null,
-      yearFrom:       yearFrom ? parseInt(yearFrom) : null,
-      yearTo:         yearTo ? parseInt(yearTo) : null,
-      campus:         campus || null,
-      employmentStatus: empStatus || null,
+      school_id:         schoolId || null,
+      school_name:       schools.find((s) => s.id === schoolId)?.name ?? null,
+      department_id:     deptId || null,
+      department_name:   departments.find((d) => d.id === deptId)?.name ?? null,
+      programme_name:    programme || null,
+      year_from:         yearFrom ? parseInt(yearFrom, 10) : null,
+      year_to:           yearTo ? parseInt(yearTo, 10) : null,
+      campus:            campus || null,
+      employment_status: empStatus || null,
     };
   }
 
@@ -382,13 +382,28 @@ export function ReportsClient({ schools }: { schools: School[] }) {
             </Sel>
             <Separator />
             <div className="grid grid-cols-2 gap-3">
-              <Sel label="Year From" value={yearFrom} onChange={setYearFrom} placeholder="Any">
-                {GRADUATION_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              <Sel label="Year From" value={yearFrom} onChange={(v) => {
+                setYearFrom(v);
+                // If yearTo is set and now less than yearFrom, clear it
+                if (yearTo && v && parseInt(v) > parseInt(yearTo)) setYearTo("");
+              }} placeholder="Any">
+                {REPORT_YEARS
+                  .filter((y) => !yearTo || parseInt(y) <= parseInt(yearTo))
+                  .map((y) => <option key={y} value={y}>{y}</option>)}
               </Sel>
-              <Sel label="Year To" value={yearTo} onChange={setYearTo} placeholder="Any">
-                {GRADUATION_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+              <Sel label="Year To" value={yearTo} onChange={(v) => {
+                setYearTo(v);
+                // If yearFrom is set and now greater than yearTo, clear it
+                if (yearFrom && v && parseInt(v) < parseInt(yearFrom)) setYearFrom("");
+              }} placeholder="Any">
+                {REPORT_YEARS
+                  .filter((y) => !yearFrom || parseInt(y) >= parseInt(yearFrom))
+                  .map((y) => <option key={y} value={y}>{y}</option>)}
               </Sel>
             </div>
+            {yearFrom && yearTo && parseInt(yearFrom) > parseInt(yearTo) && (
+              <p className="text-xs text-destructive font-medium">⚠️ Year From must be ≤ Year To</p>
+            )}
             <Sel label="Campus" value={campus} onChange={setCampus} placeholder="All Campuses">
               {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
             </Sel>

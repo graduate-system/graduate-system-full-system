@@ -41,10 +41,18 @@ export const EMPLOYMENT_SECTORS = [
   "Other",
 ] as const;
 
+// MUST opened as MECOTECH in 1983 — earliest possible graduation year
+const MUST_FOUNDED_YEAR = 1983;
+const CURRENT_YEAR = new Date().getFullYear();
+
+// For graduate self-registration: full range from 1983 to current year
 export const GRADUATION_YEARS = Array.from(
-  { length: 15 },
-  (_, i) => String(new Date().getFullYear() - i)
+  { length: CURRENT_YEAR - MUST_FOUNDED_YEAR + 1 },
+  (_, i) => String(CURRENT_YEAR - i)
 );
+
+// For committee reporting/filtering: same full range
+export const REPORT_YEARS = GRADUATION_YEARS;
 
 export const GRADUATE_SKILLS = [
   // Technical / Digital
