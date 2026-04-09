@@ -9,6 +9,13 @@ public sealed class GraduatesService(SupabaseMetadataRepository metadata, IGradu
     {
         if (string.IsNullOrWhiteSpace(payload.FullName)) return (null, "Full name is required");
 
+        // Student number is required and must be unique
+        if (string.IsNullOrWhiteSpace(payload.StudentNumber))
+            return (null, "Admission number is required.");
+
+        var studentNumber = payload.StudentNumber.Trim().ToUpperInvariant();
+        if (await repo.ExistsByStudentNumberAsync(studentNumber, cancellationToken))
+            return (null, $"Admission number '{studentNumber}' is already registered. Each graduate can only submit once.");
         var schools = await metadata.GetSchoolsAsync(cancellationToken);
 
         // ── Resolve school ───────────────────────────────────────────────────────────────
@@ -89,7 +96,7 @@ public sealed class GraduatesService(SupabaseMetadataRepository metadata, IGradu
         return (new GraduateRow
         {
             FullName         = payload.FullName.Trim(),
-            StudentNumber    = EmptyToNull(payload.StudentNumber),
+            StudentNumber    = studentNumber,
             Email            = email,
             Phone            = phone,
             Campus           = campus,

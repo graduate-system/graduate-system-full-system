@@ -3,6 +3,7 @@ namespace Api.Graduates;
 public interface IGraduatesRepository
 {
     Task<long?> ResolveProgrammeIdAsync(string departmentId, string programmeName, CancellationToken cancellationToken);
+    Task<bool> ExistsByStudentNumberAsync(string studentNumber, CancellationToken cancellationToken);
     Task<long> InsertGraduateAsync(GraduateRow row, CancellationToken cancellationToken);
     Task InsertGraduatesAsync(IEnumerable<GraduateRow> rows, CancellationToken cancellationToken);
     Task<IReadOnlyList<GraduateReadModel>> FetchGraduatesAsync(CancellationToken cancellationToken);

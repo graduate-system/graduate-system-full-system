@@ -6,7 +6,7 @@ public static class GraduatePayloadDtoFactory
 {
     public static GraduatePayloadDto Build(
         string fullName = "Jane Wanjiru",
-        string? studentNumber = null,
+        string? studentNumber = "CT201/111945/23",
         string? email = "jane@example.com",
         string? phone = null,
         string? campus = "Main Campus (Nchiru)",

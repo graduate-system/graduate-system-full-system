@@ -12,6 +12,13 @@ public sealed class SupabaseGraduatesRepository(SupabaseRestClient supabase) : I
         return rows.FirstOrDefault()?.Id;
     }
 
+    public async Task<bool> ExistsByStudentNumberAsync(string studentNumber, CancellationToken cancellationToken)
+    {
+        var url = $"rest/v1/graduates?select=id&student_number=eq.{Escape(studentNumber)}&limit=1";
+        var rows = await supabase.GetJsonAsync<List<IdRow>>(url, cancellationToken);
+        return rows.Count > 0;
+    }
+
     public async Task<long> InsertGraduateAsync(GraduateRow row, CancellationToken cancellationToken)
     {
         var url = "rest/v1/graduates?select=id";

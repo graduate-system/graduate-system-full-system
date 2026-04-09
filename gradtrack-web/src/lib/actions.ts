@@ -39,8 +39,8 @@ export async function submitGraduate(payload: GraduatePayload): Promise<SubmitRe
       payload,
     );
   } catch (err) {
-    console.error("submitGraduate unexpected error:", err);
-    return { success: false, error: "An unexpected error occurred. Please try again." };
+    const message = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
+    return { success: false, error: message };
   }
 }
 

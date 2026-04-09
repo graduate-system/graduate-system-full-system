@@ -30,9 +30,11 @@ const schema = z
       .regex(/^[A-Za-z\s''-]+$/, "Name must contain letters only — no numbers or special characters"),
     student_number: z
       .string()
-      .regex(/^(MUST\/[A-Z]{1,4}\/\d+\/\d{4})?$/, "Format: MUST/PG/123/2020")
-      .optional()
-      .or(z.literal("")),
+      .min(1, "Admission number is required")
+      .regex(
+        /^[A-Z]{1,4}\d{0,4}\/\d+\/\d{2,4}$/i,
+        "Format: e.g. CT201/12345/23"
+      ),
     email: z.string().email("Enter a valid email").optional().or(z.literal("")),
     phone: z
       .string()
@@ -163,6 +165,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
     watch,
     setValue,
     trigger,
+    reset,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -228,7 +231,7 @@ export function GraduateForm({ schools }: { schools: School[] }) {
     !["Unemployed — Seeking", "Unemployed — Not Seeking", "Further Studies"].includes(watchedEmpStatus);
 
   const stepFields: (keyof FormData)[][] = [
-    ["full_name", "email", "phone"],
+    ["full_name", "student_number", "email", "phone"],
     ["campus", "school", "department", "programme", "graduation_year"],
     ["employment_status", "employer_name", "sector", "skills", "consent"],
   ];
@@ -306,7 +309,15 @@ export function GraduateForm({ schools }: { schools: School[] }) {
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => { setSubmitted(false); setStep(0); }}
+            onClick={() => {
+              setSubmitted(false);
+              setStep(0);
+              setSubmitError(null);
+              setSubmittedId(null);
+              reset();
+              setDepartments([]);
+              setProgrammes([]);
+            }}
           >
             Submit Another Response
           </Button>
@@ -363,8 +374,14 @@ export function GraduateForm({ schools }: { schools: School[] }) {
               />
             </Field>
 
-            <Field label="Student Number" error={errors.student_number?.message} hint="Optional — as on your transcript (e.g. MUST/PG/123/2020)">
-              <Input placeholder="MUST/PG/123/2020" {...register("student_number")} />
+            <Field label="Admission Number" required error={errors.student_number?.message} hint="Your MUST admission number e.g. CT201/111945/23 — any case accepted">
+              <Input
+                placeholder="e.g. CT201/111945/23"
+                {...register("student_number", {
+                  setValueAs: (v: string) => v?.trim().toUpperCase() ?? "",
+                })}
+                className={errors.student_number ? "border-destructive" : ""}
+              />
             </Field>
 
             <Field label="Email Address" error={errors.email?.message} hint="Optional if phone is provided">
@@ -746,8 +763,23 @@ export function GraduateForm({ schools }: { schools: School[] }) {
 
       {/* Submit error */}
       {submitError && (
-        <div className="mt-4 rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-          <strong>Submission failed:</strong> {submitError}
+        <div className={cn(
+          "mt-4 rounded-lg border p-4 text-sm",
+          submitError.toLowerCase().includes("already registered")
+            ? "border-amber-400 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300"
+            : "border-destructive bg-destructive/10 text-destructive"
+        )}>
+          <p className="font-bold mb-1">
+            {submitError.toLowerCase().includes("already registered")
+              ? "⚠️ Already Registered"
+              : "❌ Submission Failed"}
+          </p>
+          <p>{submitError}</p>
+          {submitError.toLowerCase().includes("already registered") && (
+            <p className="mt-2 text-xs opacity-80">
+              If you need to update your employment details, please contact the MUST Career Services office.
+            </p>
+          )}
         </div>
       )}
 

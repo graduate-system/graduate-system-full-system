@@ -24,6 +24,9 @@ public class GraduatesServiceTests
         _repo.ResolveProgrammeIdAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
              .Returns((long?)1L);
 
+        _repo.ExistsByStudentNumberAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+             .Returns(false);
+
         _svc = new GraduatesService(_metadata, _repo);
     }
 
@@ -39,6 +42,76 @@ public class GraduatesServiceTests
         var (row, error) = await _svc.ResolveRowAsync(payload, CancellationToken.None);
         Assert.Null(row);
         Assert.NotNull(error);
+    }
+
+    // ── ResolveRowAsync — student number validation ──────────────────────────
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ResolveRowAsync_MissingStudentNumber_ReturnsError(string? studentNumber)
+    {
+        var payload = GraduatePayloadDtoFactory.Build(studentNumber: studentNumber);
+        var (row, error) = await _svc.ResolveRowAsync(payload, CancellationToken.None);
+        Assert.Null(row);
+        Assert.NotNull(error);
+        Assert.Contains("admission number", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ResolveRowAsync_DuplicateStudentNumber_ReturnsError()
+    {
+        _repo.ExistsByStudentNumberAsync("CT201/111945/23", Arg.Any<CancellationToken>())
+             .Returns(true);
+
+        var payload = GraduatePayloadDtoFactory.Build(studentNumber: "CT201/111945/23");
+        var (row, error) = await _svc.ResolveRowAsync(payload, CancellationToken.None);
+        Assert.Null(row);
+        Assert.NotNull(error);
+        Assert.Contains("already registered", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ResolveRowAsync_StudentNumber_NormalisedToUppercase()
+    {
+        _repo.ExistsByStudentNumberAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+             .Returns(false);
+
+        var payload = GraduatePayloadDtoFactory.Build(studentNumber: "ct201/111945/23");
+        var (row, _) = await _svc.ResolveRowAsync(payload, CancellationToken.None);
+        Assert.NotNull(row);
+        Assert.Equal("CT201/111945/23", row!.StudentNumber);
+    }
+
+    [Theory]
+    [InlineData("ct201/111945/23",  "CT201/111945/23")]
+    [InlineData("CT201/111945/23",  "CT201/111945/23")]
+    [InlineData("Ct201/111945/23",  "CT201/111945/23")]
+    [InlineData("  ct201/111945/23  ", "CT201/111945/23")]
+    public async Task ResolveRowAsync_StudentNumber_CaseInsensitiveNormalisation(string input, string expected)
+    {
+        _repo.ExistsByStudentNumberAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+             .Returns(false);
+
+        var payload = GraduatePayloadDtoFactory.Build(studentNumber: input);
+        var (row, _) = await _svc.ResolveRowAsync(payload, CancellationToken.None);
+        Assert.NotNull(row);
+        Assert.Equal(expected, row!.StudentNumber);
+    }
+
+    [Fact]
+    public async Task ResolveRowAsync_DuplicateCheck_UsesNormalisedUppercaseValue()
+    {
+        // Verify the duplicate check is called with the uppercased value, not the raw input
+        _repo.ExistsByStudentNumberAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+             .Returns(false);
+
+        var payload = GraduatePayloadDtoFactory.Build(studentNumber: "ct201/111945/23");
+        await _svc.ResolveRowAsync(payload, CancellationToken.None);
+
+        await _repo.Received(1).ExistsByStudentNumberAsync(
+            "CT201/111945/23", Arg.Any<CancellationToken>());
     }
 
     // ── ResolveRowAsync — school resolution ──────────────────────────────────

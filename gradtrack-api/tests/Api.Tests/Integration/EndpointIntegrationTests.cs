@@ -236,6 +236,7 @@ public class EndpointIntegrationTests : IClassFixture<ApiFactory>
         var res = await client.PostAsync("/api/graduates", Json(new
         {
             full_name = "Jane Wanjiru",
+            student_number = "CT201/111945/23",
             email = "jane@example.com",
             campus = "Main Campus (Nchiru)",
             school = "sci",
@@ -271,6 +272,7 @@ public class EndpointIntegrationTests : IClassFixture<ApiFactory>
         var res = await client.PostAsync("/api/graduates", Json(new
         {
             full_name = "Jane Wanjiru",
+            student_number = "CT201/111945/24",
             email = "jane@example.com",
             campus = "Main Campus (Nchiru)",
             school = "sci",
@@ -294,6 +296,7 @@ public class EndpointIntegrationTests : IClassFixture<ApiFactory>
         var payloads = Enumerable.Range(1, 3).Select(i => new
         {
             full_name = $"Graduate {i}",
+            student_number = $"CT201/11194{i}/23",
             email = $"grad{i}@example.com",
             campus = "Main Campus (Nchiru)",
             school = "sci",
@@ -609,6 +612,8 @@ public class ApiFactory : WebApplicationFactory<Program>
             .Returns(Task.CompletedTask);
         repo.ResolveProgrammeIdAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((long?)1L);
+        repo.ExistsByStudentNumberAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(false);
         repo.FetchDbStatsAsync(Arg.Any<CancellationToken>()).Returns(
             new DbStatsReadModel(
                 TotalGraduates: graduates.Count,
